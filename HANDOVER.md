@@ -16,11 +16,12 @@
 | 交付物 | 路径 | 版本 | 校验 |
 |---|---|---|---|
 | 应用包 | `dist/NetScope.app` | 1.1.2 | SHA-256（可执行文件）`b71f340ee6c8cfe39f0c66837e54bb8287448cee8dc97fd96cc22b0e22b545c1` |
-| 源码 | `/Users/zyg/WorkBuddy/Software Development/NetScope` | 本地 git 未初始化 | — |
+| 源码 | `/Users/zyg/WorkBuddy/Software Development/NetScope` | commit `1b50131` | — |
 | 界面快照 | `docs/panel.png`、`docs/panel-history.png`、`docs/panel-settings.png` | — | 748×845 / 748×754 / 748×1020（真实 popover 截图） |
 
 - 可执行文件 1,034,016 字节（1.01 MB）；`.app` 整包 3.1 MB。体积增长来自 libsqlite3 与 UserNotifications 的链接。
-- **未对外发布**：没有 GitHub Release、没有 Pages、没有远程仓库。
+- **已发布**：仓库 <https://github.com/zdx8/NetScope-macOS>，官网 <https://zdx8.github.io/NetScope-macOS/>
+  （Pages 源 = `main` 分支 `/docs`），Release `v1.1.2` 附 `NetScope-1.1.2-arm64.dmg`（1,996,399 字节）。
 - 临时签名（`codesign --sign -`），仅本机可双击运行。
 
 ## 3. 怎么跑起来
@@ -314,6 +315,7 @@ netstat -ib -I en0 | awk 'NR==2{print $7}'   # 读两次，与面板"本次累�
 | 2026-10-25 | 1.0.0+ | 修两处实测缺陷：FlClash 因聚合键来源不一致被拆成两行；nettop 在 pty 下忽略 SIGTERM 导致退出后残留子进程（补 SIGKILL 兜底 + 启动清理孤儿） |
 | 2026-10-25 | 1.0.1 | 双通道采样：`.external` 出应用列表、`.physical` 出总量，修掉 VPN / 虚拟接口（Lima、Docker）导致的重复计数；隧道判据为 utun 上有 IPv4 |
 | 2026-10-25 | 1.0.2 | 按用户要求调整口径：**总量仍取物理网卡，但不再剔除 VPN 类应用**——它们在物理链路上的字节是真实流量，照常显示并加盾牌标注。移除「已排除加密开销」提示，自检 86 → 78 项 |
+| 2026-10-25 | 1.1.2 | 发布：建仓 `zdx8/NetScope-macOS`、官网 Pages（`docs/` 单页）、Release v1.1.2 附 DMG |
 | 2026-10-25 | 1.1.2 | 菜单栏默认形态改为**网络图标 + 双行数值**（上行在上、下行在下），趋势图降为右键可选。整块画成一张 template image：菜单栏按钮默认单行排版，塞两行文本会被压扁；文字区固定最小宽度 27pt，避免速率跳变时右侧图标左右抖动。移除 `showRateInMenuBar` 设置项 |
 | 2026-10-25 | 1.1.1 | **修闪退**：点「刷新间隔」时在 segmented picker 的 action 里同步重启两条 nettop 通道（各 kill + usleep 80ms），主线程被卡在控件的事件帧里；改为延迟 250ms 再重启，并把重启挪出 UI 事件窗口。同时修掉「改间隔后 nettop 仍用旧 `-s`」的真 bug（`restart()` 没把新间隔传下去）。新增未捕获异常日志 `~/Library/Logs/NetScope-crash.log` |
 | 2026-10-25 | 1.1.0 | 四项功能：**历史持久化**（SQLite 按天聚合，30 秒落盘节流，今日/7 天/Top 应用视图）、**菜单栏趋势图**（40 点下行曲线，template image）、**流量告警**（连续 3 次超阈值 + 10 分钟冷却）、**列表口径开关**（只统计物理链路）。自检 78 → 104 项 |

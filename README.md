@@ -1,5 +1,7 @@
 # NetScope
 
+> 官网 <https://zdx8.github.io/NetScope-macOS/> · 下载 [Releases](https://github.com/zdx8/NetScope-macOS/releases/latest)
+
 macOS 菜单栏常驻的**应用级网络流量监控**。SwiftUI 原生，约 670 KB 可执行文件，无 root 权限、
 无内核扩展、无系统扩展、零第三方依赖。
 
