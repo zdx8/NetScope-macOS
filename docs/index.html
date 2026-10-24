@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NetScope — macOS 菜单栏网络流量监控</title>
+<meta name="description" content="macOS 原生菜单栏应用，按应用统计上下行流量。60 秒曲线、按天历史、流量告警，无 root、无内核扩展、零第三方依赖。">
+<link rel="stylesheet" href="style.css">
+<link rel="icon" href="images/icon.png">
+<meta property="og:title" content="NetScope — macOS 菜单栏网络流量监控">
+<meta property="og:description" content="点开就知道刚才到底是谁在偷偷跑流量。">
+<meta property="og:image" content="panel.png">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="wrap topbar-inner">
+    <a class="brand" href="#top">
+      <img src="images/icon.png" alt="" width="22" height="22">
+      <span>NetScope</span>
+    </a>
+    <nav class="topnav">
+      <a href="#features">功能</a>
+      <a href="#shots">界面</a>
+      <a href="#install">安装</a>
+      <a class="ghost" href="https://github.com/zdx8/NetScope-macOS">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<main id="top">
+
+  <section class="hero">
+    <div class="wrap hero-inner">
+      <div class="hero-copy">
+        <p class="eyebrow">macOS 菜单栏 · 应用级流量监控</p>
+        <h1>点开就知道，<br>刚才到底是谁在跑流量。</h1>
+        <p class="lede">
+          按应用统计上下行字节，每秒刷新。60 秒双向曲线、按天历史、超阈值告警。
+          <strong>无 root、无内核扩展、零第三方依赖</strong>，可执行文件 1 MB。
+        </p>
+        <div class="cta">
+          <a class="btn primary" href="https://github.com/zdx8/NetScope-macOS/releases/latest">
+            下载 v1.1.2
+          </a>
+          <a class="btn" href="#install">从源码构建</a>
+        </div>
+        <p class="fineprint">Apple 芯片 · macOS 14+ · 临时签名（需自行签名后分发）</p>
+      </div>
+
+      <figure class="hero-shot">
+        <img src="menubar-badge.png" alt="菜单栏中的 NetScope：网络图标与上行/下行两行数值">
+        <figcaption>菜单栏默认形态：上行在上、下行在下</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <section id="shots" class="section">
+    <div class="wrap">
+      <h2>界面</h2>
+      <div class="shots">
+        <figure class="shot wide">
+          <img src="panel.png" alt="NetScope 实时面板">
+          <figcaption>实时：总速率、本次累计、60 秒双向曲线、按占用排序的应用列表。VPN 客户端带盾牌标注。</figcaption>
+        </figure>
+        <div class="shot-pair">
+          <figure class="shot">
+            <img src="panel-history.png" alt="NetScope 历史视图">
+            <figcaption>历史：今日 / 近 7 天合计、7 天柱状图、今日 Top 应用</figcaption>
+          </figure>
+          <figure class="shot">
+            <img src="panel-settings.png" alt="NetScope 设置项">
+            <figcaption>设置：刷新间隔、显示条数、列表口径、告警、开机启动</figcaption>
+          </figure>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="features" class="section muted">
+    <div class="wrap">
+      <h2>它解决什么</h2>
+      <div class="grid">
+
+        <article class="card">
+          <h3>按应用聚合，不是按进程</h3>
+          <p>Chrome 开了二十个 Helper？它们会归并成一条 <code>Google Chrome</code>。
+             沿 <code>proc_pidpath</code> 向上找最外层 <code>.app</code>，所以 Helper、渲染进程都不会散落成一堆噪音。</p>
+        </article>
+
+        <article class="card">
+          <h3>总量只认物理网卡</h3>
+          <p>开着 TUN 型 VPN 或虚拟机时，同一份数据会在虚拟接口和物理接口各计一次。
+             实测差 2.2 倍（23,575 B/s vs 10,758 B/s）。这里跑两条采样通道：列表看全接口，总量只看 <code>en*</code>。</p>
+        </article>
+
+        <article class="card">
+          <h3>历史落在 SQLite</h3>
+          <p>按天聚合，写入节流 30 秒。能翻今日用量、近 7 天趋势、今天消耗最多的应用 —— 关掉应用也不会归零。</p>
+        </article>
+
+        <article class="card">
+          <h3>告警不吵人</h3>
+          <p>连续 3 次采样都超阈值才发通知，同应用 10 分钟冷却，掉到阈值以下立即清零。
+             下载刚开始那一秒的峰值不会打扰你。</p>
+        </article>
+
+        <article class="card">
+          <h3>不用装任何东西</h3>
+          <p>数据来自系统自带的 <code>/usr/bin/nettop</code>，不需要 root、不需要内核扩展或网络扩展，
+             也不需要辅助功能、屏幕录制、完全磁盘访问权限。</p>
+        </article>
+
+        <article class="card">
+          <h3>轻</h3>
+          <p>主进程 CPU 0.06%、内存 32 MB；两个 nettop 子进程各 0.1%、6 MB。
+             每秒采样一次，界面只在菜单栏里安静待着。</p>
+        </article>
+
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="wrap">
+      <h2>怎么做的</h2>
+      <div class="prose">
+        <p>把 <code>nettop</code> 接到伪终端上实时读：</p>
+        <pre><code>nettop -P -x -L 0 -s 1 -J bytes_in,bytes_out -t external</code></pre>
+        <ul>
+          <li><code>-L N</code> 的采样窗口固定 30 秒，与 <code>N</code> 无关 —— 没法用它做秒级采样。</li>
+          <li><code>-L 0</code> 接管道时 stdout 是全缓冲，实测数秒延迟且进程被杀会丢数据；接到 pty 后变成行缓冲。</li>
+          <li>输出是<strong>进程自启动以来的累计字节</strong>，速率靠两次采样差分，基准保留 30 秒。</li>
+        </ul>
+        <p>这些都是在真机上量出来的结论，不是猜的。同样的结论也决定了退出时为什么要先 <code>SIGTERM</code> 再补一刀
+           <code>SIGKILL</code>：nettop 在 pty 下会忽略 TERM，而 <code>kill(2)</code> 照样返回 0。</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="install" class="section muted">
+    <div class="wrap">
+      <h2>安装</h2>
+      <div class="install-grid">
+        <div class="install-col">
+          <h3>下载</h3>
+          <ol>
+            <li>从 <a href="https://github.com/zdx8/NetScope-macOS/releases/latest">Releases</a> 下载 <code>NetScope-1.1.2-arm64.dmg</code></li>
+            <li>打开后把 NetScope 拖进「应用程序」</li>
+            <li>首次启动若被 Gatekeeper 拦下：右键 →「打开」，或执行下面的命令</li>
+          </ol>
+          <pre><code>xattr -dr com.apple.quarantine /Applications/NetScope.app</code></pre>
+          <p class="note">出于安全考虑，包是临时签名（<code>codesign --sign -</code>）。自己用没问题；要分发给别人请自行签名与公证。</p>
+        </div>
+
+        <div class="install-col">
+          <h3>从源码构建</h3>
+          <ol>
+            <li>需要 Xcode 命令行工具（Swift 6.x）</li>
+            <li>克隆后一条命令打包并启动</li>
+          </ol>
+          <pre><code>git clone https://github.com/zdx8/NetScope-macOS.git
+cd NetScope-macOS
+bash Scripts/build_app.sh</code></pre>
+          <p class="note">首次构建约 24 秒，增量 6–7 秒。产物在 <code>dist/NetScope.app</code>。</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="wrap">
+      <h2>已知限制</h2>
+      <ul class="limits">
+        <li><strong>只统计 TCP / UDP socket。</strong>ICMP、部分 RAW socket 不计入，与「活动监视器」的数字不完全一致。</li>
+        <li><strong>loopback 被排除。</strong><code>127.0.0.1</code> 上的通信不显示。</li>
+        <li><strong>走 TUN 型 VPN 时，各应用之和会大于总量。</strong>VPN 客户端显示的是物理链路上的加密字节，与隧道内应用的明文互为副本 —— 总量本身准确，但不能把各行相加。</li>
+        <li><strong>只跑 IPv6 的隧道识别不到。</strong>判据是 <code>utun*</code> 上有 IPv4 地址（macOS 会给每个 utun 都发 <code>fe80::</code>，用 IPv4 才能干净区分）。</li>
+        <li><strong>面板打开时菜单栏状态项会有系统高亮底。</strong>这是 NSPopover 锚定绘制的高亮层，按钮状态管不了。</li>
+      </ul>
+    </div>
+  </section>
+
+</main>
+
+<footer class="footer">
+  <div class="wrap footer-inner">
+    <div>
+      <p class="fname">NetScope <span class="tag">v1.1.2</span></p>
+      <p class="fmeta">SwiftUI · AppKit · SQLite · 零第三方依赖</p>
+    </div>
+    <div class="flinks">
+      <a href="https://github.com/zdx8/NetScope-macOS">源码</a>
+      <a href="https://github.com/zdx8/NetScope-macOS/blob/main/HANDOVER.md">交接文档</a>
+      <a href="https://github.com/zdx8/NetScope-macOS/releases/latest">下载</a>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>
