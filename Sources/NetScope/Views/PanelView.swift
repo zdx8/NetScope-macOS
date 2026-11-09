@@ -80,7 +80,7 @@ struct PanelView: View {
             Spacer(minLength: 8)
             Text(statusDetail)
                 .font(.system(size: 10.5))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Theme.textSecondary)
                 .lineLimit(1)
                 .truncationMode(.tail)
 
@@ -91,7 +91,7 @@ struct PanelView: View {
             } label: {
                 Image(systemName: mode == .live ? "chart.bar.xaxis" : "waveform.path.ecg")
                     .font(.system(size: 10.5))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Theme.textSecondary)
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
@@ -133,11 +133,11 @@ struct PanelView: View {
 
     private var summary: some View {
         HStack(alignment: .top) {
-            rateBlock(title: "下行", value: engine.totalDown, total: engine.sessionDown,
-                      icon: "arrow.down", color: Theme.down, alignment: .leading)
-            Spacer(minLength: 12)
             rateBlock(title: "上行", value: engine.totalUp, total: engine.sessionUp,
-                      icon: "arrow.up", color: Theme.up, alignment: .trailing)
+                      icon: "arrow.up", color: Theme.up, alignment: .leading)
+            Spacer(minLength: 12)
+            rateBlock(title: "下行", value: engine.totalDown, total: engine.sessionDown,
+                      icon: "arrow.down", color: Theme.down, alignment: .trailing)
         }
         .padding(.horizontal, 14)
         .padding(.bottom, 8)
@@ -166,7 +166,7 @@ struct PanelView: View {
             }
             Text("本次 \(ByteFormat.size(total))")
                 .font(.system(size: 10))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Theme.textSecondary)
                 .monospacedDigit()
         }
     }
@@ -181,8 +181,8 @@ struct PanelView: View {
                     Text("峰值 \(ByteFormat.rate(engine.history.peak))")
                 }
             }
-            .font(.system(size: 9))
-            .foregroundStyle(.tertiary)
+            .font(.system(size: 9.5))
+            .foregroundStyle(Theme.textSecondary)
             .monospacedDigit()
         }
         .padding(.horizontal, 14)
@@ -201,24 +201,24 @@ struct PanelView: View {
                             .foregroundStyle(Theme.fault)
                         Text("无法读取网络计数")
                             .font(.system(size: 11))
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(Theme.textSecondary)
                         Button("重试") { engine.start() }
                             .controlSize(.small)
                     } else if engine.sampleCount == 0 {
                         ProgressView().controlSize(.small)
                         Text("正在采集…")
                             .font(.system(size: 11))
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(Theme.textSecondary)
                     } else {
                         Image(systemName: "antenna.radiowaves.left.and.right.slash")
                             .font(.system(size: 16))
-                            .foregroundStyle(.tertiary)
+                            .foregroundStyle(Theme.textTertiary)
                         Text("当前没有活跃网络流量")
                             .font(.system(size: 11))
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(Theme.textSecondary)
                         Text("系统级守护进程的后台同步可能仍在进行")
                             .font(.system(size: 9.5))
-                            .foregroundStyle(.tertiary)
+                            .foregroundStyle(Theme.textTertiary)
                     }
                 }
                 .frame(maxWidth: .infinity)
@@ -352,7 +352,7 @@ struct PanelView: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.borderless)
-        .foregroundStyle(.secondary)
+        .foregroundStyle(Theme.textSecondary)
     }
 
     private var divider: some View {

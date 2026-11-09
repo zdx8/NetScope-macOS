@@ -31,10 +31,10 @@ struct HistorySection: View {
                 VStack(spacing: 5) {
                     Text("暂无历史记录")
                         .font(.system(size: 11))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Theme.textSecondary)
                     Text("累积到下一次落盘（约 30 秒）后出现")
                         .font(.system(size: 9.5))
-                        .foregroundStyle(.tertiary)
+                        .foregroundStyle(Theme.textTertiary)
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 16)
@@ -43,7 +43,7 @@ struct HistorySection: View {
                     HStack {
                         Text("今日用量")
                             .font(.system(size: 10))
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(Theme.textSecondary)
                         Spacer()
                     }
                     .padding(.bottom, 4)
@@ -62,8 +62,8 @@ struct HistorySection: View {
         HStack(spacing: barSpacing) {
             ForEach(Array(dailyTotals.enumerated()), id: \.offset) { index, day in
                 Text(shortDay(day.day, isEdge: index == 0 || index == dailyTotals.count - 1))
-                    .font(.system(size: 8))
-                    .foregroundStyle(.tertiary)
+                    .font(.system(size: 8.5))
+                    .foregroundStyle(Theme.textTertiary)
                     .lineLimit(1)
                     // fixedSize 让 "10/25" 用自然宽度（22pt 的槽位装不下），
                     // 只有首尾有文字，溢出到相邻空槽不会有视觉问题
@@ -78,7 +78,7 @@ struct HistorySection: View {
         VStack(alignment: .leading, spacing: 2) {
             Text(title)
                 .font(.system(size: 10))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Theme.textSecondary)
             Text(value == 0 ? "—" : ByteFormat.size(value))
                 .font(.system(size: 17, weight: .semibold))
                 .monospacedDigit()
@@ -97,7 +97,7 @@ struct HistorySection: View {
             } else {
                 Image(systemName: "gearshape.2.fill")
                     .font(.system(size: 9))
-                    .foregroundStyle(.tertiary)
+                    .foregroundStyle(Theme.textTertiary)
                     .frame(width: 15, height: 15)
             }
             Text(entry.name)
@@ -107,7 +107,7 @@ struct HistorySection: View {
             Spacer(minLength: 6)
             Text(ByteFormat.size(entry.total))
                 .font(.system(size: 11, design: .monospaced))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Theme.textSecondary)
         }
         .padding(.vertical, 3)
     }

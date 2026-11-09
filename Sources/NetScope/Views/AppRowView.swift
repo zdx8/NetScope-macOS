@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// 弹出面板里的一行：图标、名称、下行速率、占比条、上行速率。
+/// 弹出面板里的一行：图标、名称、上行速率、占比条、下行速率（上行在前，与总览「左上行右下行」一致）。
 struct AppRowView: View {
     let row: AppTrafficRow
     /// 相对本批最快应用的占比（0...1），用于画细进度条
@@ -19,7 +19,7 @@ struct AppRowView: View {
                 HStack(spacing: 4) {
                     Text(row.name)
                         .font(.system(size: 12, weight: .medium))
-                        .foregroundStyle(row.isAggregate ? Color.secondary : Color.primary)
+                        .foregroundStyle(row.isAggregate ? Theme.textSecondary : Color.primary)
                         .lineLimit(1)
                         .truncationMode(.tail)
                         .help(row.name)
@@ -27,7 +27,7 @@ struct AppRowView: View {
                     if row.isTunnelClient {
                         Image(systemName: "lock.shield.fill")
                             .font(.system(size: 8.5))
-                            .foregroundStyle(.tertiary)
+                            .foregroundStyle(Theme.up)
                             .help("VPN 客户端：这里显示的是它在物理链路上的加密流量，"
                                   + "与隧道内应用是同一份数据的两种形态，不要与总量相加")
                     }
@@ -36,9 +36,9 @@ struct AppRowView: View {
 
                 Spacer(minLength: 6)
 
-                Text(ByteFormat.rate(row.down))
+                Text(ByteFormat.rate(row.up))
                     .font(.system(size: 11, weight: .medium, design: .monospaced))
-                    .foregroundStyle(row.down > 0 ? Theme.down : Color.secondary.opacity(0.65))
+                    .foregroundStyle(row.up > 0 ? Theme.up : Theme.textTertiary)
                     .frame(width: rateWidth, alignment: .trailing)
             }
 
@@ -46,24 +46,24 @@ struct AppRowView: View {
                 GeometryReader { geometry in
                     ZStack(alignment: .leading) {
                         Capsule(style: .continuous)
-                            .fill(Color.primary.opacity(0.06))
+                            .fill(Color.primary.opacity(0.08))
                         Capsule(style: .continuous)
-                            .fill(barColor.opacity(row.total > 0 ? 0.55 : 0.14))
+                            .fill(barColor.opacity(row.total > 0 ? 0.8 : 0.18))
                             .frame(width: max(geometry.size.width * min(max(fraction, 0), 1),
                                               fraction > 0 ? 2.5 : 0))
                     }
                 }
-                .frame(height: 3)
+                .frame(height: 3.5)
 
-                Text(ByteFormat.rate(row.up))
-                    .font(.system(size: 10, design: .monospaced))
-                    .foregroundStyle(row.up > 0 ? Theme.up : Color.secondary.opacity(0.6))
+                Text(ByteFormat.rate(row.down))
+                    .font(.system(size: 10.5, weight: .medium, design: .monospaced))
+                    .foregroundStyle(row.down > 0 ? Theme.down : Theme.textTertiary)
                     .frame(width: rateWidth, alignment: .trailing)
             }
         }
         .padding(.vertical, 2.5)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("\(row.name)，下行 \(ByteFormat.rate(row.down))，上行 \(ByteFormat.rate(row.up))")
+        .accessibilityLabel("\(row.name)，上行 \(ByteFormat.rate(row.up))，下行 \(ByteFormat.rate(row.down))")
     }
 
     /// 进度条反映的是「总吞吐占最快应用的比例」，所以颜色跟随主导方向：
@@ -82,7 +82,7 @@ struct AppRowView: View {
         } else {
             Image(systemName: row.isAggregate ? "ellipsis.circle" : "gearshape.2.fill")
                 .font(.system(size: 12))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Theme.textSecondary)
         }
     }
 }

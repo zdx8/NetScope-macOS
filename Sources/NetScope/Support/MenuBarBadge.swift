@@ -1,6 +1,6 @@
 import AppKit
 
-/// 菜单栏内容：网络图标 + 双行数值（上行在上、下行在下）。
+/// 菜单栏内容：网络图标 + 双行数值（上行在上、下行在下，与面板「先上行」方向统一）。
 ///
 /// 为什么整块画成一张 NSImage，而不是 `image` + `attributedTitle`：
 /// 菜单栏按钮默认单行排版，塞两行文本会被压扁或截断；自己画才能精确控制图标位置、
@@ -45,14 +45,14 @@ enum MenuBarBadge {
                 icon.draw(in: iconRect, from: .zero, operation: .sourceOver, fraction: 1.0)
             }
 
-            let textX = iconSize + gap
-            let centerY = rect.height / 2
-            // 上行贴在中线之上，下行贴在中线之下
-            let upRect = NSRect(x: textX, y: centerY + 0.5, width: textWidth, height: lineHeight)
-            let downRect = NSRect(x: textX, y: centerY - lineHeight + 0.5,
-                                  width: textWidth, height: lineHeight)
-            (upText as NSString).draw(in: upRect, withAttributes: attributes)
-            (downText as NSString).draw(in: downRect, withAttributes: attributes)
+        let textX = iconSize + gap
+        let centerY = rect.height / 2
+        // 上行贴在中线之上，下行贴在中线之下（AppKit 非翻转坐标，y 向上为正）
+        let upRect = NSRect(x: textX, y: centerY + 0.5, width: textWidth, height: lineHeight)
+        let downRect = NSRect(x: textX, y: centerY - lineHeight + 0.5,
+                              width: textWidth, height: lineHeight)
+        (upText as NSString).draw(in: upRect, withAttributes: attributes)
+        (downText as NSString).draw(in: downRect, withAttributes: attributes)
             return true
         }
         image.isTemplate = true
