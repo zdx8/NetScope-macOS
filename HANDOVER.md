@@ -15,13 +15,14 @@
 
 | 交付物 | 路径 | 版本 | 校验 |
 |---|---|---|---|
-| 应用包 | `dist/NetScope.app` | 1.1.2 | SHA-256（可执行文件）`b71f340ee6c8cfe39f0c66837e54bb8287448cee8dc97fd96cc22b0e22b545c1` |
-| 源码 | `~/WorkBuddy/Software Development/NetScope` | commit `1b50131` | — |
-| 界面快照 | `docs/panel.png`、`docs/panel-history.png`、`docs/panel-settings.png` | — | 748×845 / 748×754 / 748×1020（真实 popover 截图） |
+| 应用包 | `dist/NetScope.app` | 1.1.3 | SHA-256（可执行文件）`f08c569769fd1a2020d83ae5cc9f523ed999ace473f88eb3455d9c9f911bc287` |
+| 源码 | `~/AiWork/SoftwareDevelopment/NetScope` | 见 git log | — |
+| 界面快照 | `docs/panel.png`、`docs/panel-history.png`、`docs/panel-settings.png` | — | 696×1026 / 696×674 / 696×1350（`--render-panel` 离屏渲染，demo 合成数据，无真实使用记录） |
 
-- 可执行文件 1,034,016 字节（1.01 MB）；`.app` 整包 3.1 MB。体积增长来自 libsqlite3 与 UserNotifications 的链接。
+- `.app` 整包 3.1 MB。体积增长来自 libsqlite3 与 UserNotifications 的链接。
 - **已发布**：仓库 <https://github.com/zdx8/NetScope-macOS>，官网 <https://zdx8.github.io/NetScope-macOS/>
-  （Pages 源 = `main` 分支 `/docs`），Release `v1.1.2` 附 `NetScope-1.1.2-arm64.dmg`（1,996,399 字节）。
+  （Pages 源 = `main` 分支 `/docs`），Release `v1.1.3` 附 `NetScope-1.1.3-arm64.dmg`（2,003,045 字节，
+  SHA-256 `31a16bf5d8ea5565f857fe6f867f645044d0290c6d5a201f6487d88313bf9753`）。
 - 临时签名（`codesign --sign -`），仅本机可双击运行。
 
 ## 3. 怎么跑起来
@@ -29,7 +30,7 @@
 实测环境：**macOS 27.2 (26B118) / Xcode 27.1 (27A9275) / Swift 6.4 / arm64**
 
 ```bash
-cd "~/WorkBuddy/Software Development/NetScope"
+cd "~/AiWork/SoftwareDevelopment/NetScope"
 
 # 一条命令：编译 → 图标 → 组装 .app → 签名 → 启动
 bash Scripts/build_app.sh
@@ -124,7 +125,7 @@ NetScopeMain (@main)
   以及解释列表之和为什么可能大于总量；不需要知道是哪个进程建的隧道。
 - **判据**：`utun*` 上分配了 IPv4 地址。macOS 会给每个 utun 都发 `fe80::` 链路本地地址
   （utun0–4 这类系统内部接口就是这样），用 IPv4 能干净地区分——实测本机 utun5
-  （Tailscale，100.68.175.24）与 utun6（FlClash，198.18.0.0）有 IPv4，utun0–4 没有。
+  （Tailscale，100.x.y.z（实测具体值隐去））与 utun6（FlClash，198.18.0.0）有 IPv4，utun0–4 没有。
 - **代价**：只跑 IPv6 的隧道识别不到，此时不显示 VPN 标记（总量依然准确）。
 - **什么条件下推翻**：需要按隧道做分流统计时，必须拿到接口与进程的映射。
 
@@ -243,7 +244,7 @@ swiftc -O -o /tmp/cpumeter Scripts/cpumeter.swift
 每条都给预期输出，照此可确认「在我手里是好的」。
 
 ```bash
-cd "~/WorkBuddy/Software Development/NetScope"
+cd "~/AiWork/SoftwareDevelopment/NetScope"
 
 # 1) 逻辑自检：104 项断言全过
 bash Scripts/selfcheck/run.sh
@@ -319,3 +320,9 @@ netstat -ib -I en0 | awk 'NR==2{print $7}'   # 读两次，与面板"本次累�
 | 2026-10-25 | 1.1.2 | 菜单栏默认形态改为**网络图标 + 双行数值**（上行在上、下行在下），趋势图降为右键可选。整块画成一张 template image：菜单栏按钮默认单行排版，塞两行文本会被压扁；文字区固定最小宽度 27pt，避免速率跳变时右侧图标左右抖动。移除 `showRateInMenuBar` 设置项 |
 | 2026-10-25 | 1.1.1 | **修闪退**：点「刷新间隔」时在 segmented picker 的 action 里同步重启两条 nettop 通道（各 kill + usleep 80ms），主线程被卡在控件的事件帧里；改为延迟 250ms 再重启，并把重启挪出 UI 事件窗口。同时修掉「改间隔后 nettop 仍用旧 `-s`」的真 bug（`restart()` 没把新间隔传下去）。新增未捕获异常日志 `~/Library/Logs/NetScope-crash.log` |
 | 2026-10-25 | 1.1.0 | 四项功能：**历史持久化**（SQLite 按天聚合，30 秒落盘节流，今日/7 天/Top 应用视图）、**菜单栏趋势图**（40 点下行曲线，template image）、**流量告警**（连续 3 次超阈值 + 10 分钟冷却）、**列表口径开关**（只统计物理链路）。自检 78 → 104 项 |
+| 2026-11-09 | 1.1.2 | 菜单栏双行数值顺序对调：**下行在上、上行在下**（用户反馈，下行流量是主要关注对象，应放第一行）。改动仅 `MenuBarBadge.image` 的两行 y 坐标，几何推导：中线 y=11，下行矩形 y∈[11.5,21]（AppKit 非翻转坐标上半部），上行 y∈[2,11.5]。未发新 Release |
+| 2026-11-09 | 1.1.2 | **可读性重做**（用户反馈「界面看不太清」）：`Theme` 全面动态色化——浅色模式取深值、深色模式取亮值；上行琥珀 #F1921A→#B25A00、下行蓝 #2D80F1→#0A63E6、新增 textSecondary(#57575C)/textTertiary(#8A8A90) 替代 `.secondary`/`.tertiary` 的文字位；0 值速率去掉透明度叠加；上行字号 10→10.5 加 medium；图表标签 9→9.5pt 升为次级灰。实测像素对比度（白底，笔画核心）：琥珀 3.40→**4.82**:1（+42%）、蓝 4.53→**5.32**:1（+17%），均达 WCAG AA（≥4.5:1）。`docs/` 官网截图未更新（待用户确认效果后同步） |
+| 2026-11-09 | 1.1.2 | 面板速率总览左右对调（用户要求）：**左上行、右下行**。改动仅 `PanelView.summary` 交换两个 `rateBlock` 调用 |
+| 2026-11-09 | 1.1.2 | 列表行内顺序对调（用户反馈「反了」）：**上行速率（橙）在上排、下行速率（蓝）在下排**，与总览的「先上行后下行」阅读顺序统一。改动仅 `AppRowView.body` 交换两处速率 Text 及字号层级（上排 11pt / 下排 10.5pt 保持） |
+| 2026-11-09 | 1.1.2 | 菜单栏 badge **改回「上行在上、下行在下」**（用户确认）：至此全局三个位置统一「先上行后下行」——菜单栏上行在上、总览左上行右下行、列表行上橙下蓝。今日五项 UI 改动的最终态 |
+| 2026-11-09 | 1.1.3 | **脱敏 + 发布**：①全仓扫描个人信息——HANDOVER 含 3 处本机绝对路径（用户名）与 1 处 Tailscale 内网 IP，均已脱敏（路径泛化为 `~/`、IP 隐去）；git 历史中的同类信息因需 rewrite 强推暂保留，风险低（CGNAT 私有段 + 仅用户名）。②`--demo` 补注入合成历史数据 + `demoLoaded` 标志防止 `refreshHistory` 用真实库覆盖——官网截图不再含真实使用记录。③`--render-panel` 新增 `--panel-mode history\|settings`，官网 6 张截图全部改为离屏渲染生成。④版本 1.1.3、DMG 重打包、Release 发布 |

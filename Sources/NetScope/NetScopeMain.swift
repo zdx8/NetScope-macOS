@@ -204,13 +204,24 @@ enum HeadlessRunner {
             engine.loadDemoData(tunnelActive: TunnelDetector.hasActiveTunnel())
         }
 
-        // 可选：把面板离屏渲染成 PNG，用于人工核对排版（不依赖屏幕录制权限）
+        // 可选：把面板离屏渲染成 PNG，用于人工核对排版与官网截图（不依赖屏幕录制权限）。
+        // `--panel-mode history|settings` 决定面板落点，默认 live。
         if let index = arguments.firstIndex(of: "--render-panel"), index + 1 < arguments.count {
             let base = arguments[index + 1]
+            var mode: PanelView.PanelMode = .live
+            var showSettings = false
+            if let modeIndex = arguments.firstIndex(of: "--panel-mode"), modeIndex + 1 < arguments.count {
+                switch arguments[modeIndex + 1] {
+                case "history": mode = .history
+                case "settings": showSettings = true
+                default: break
+                }
+            }
             for scheme in [ColorScheme.light, ColorScheme.dark] {
                 let suffix = scheme == .light ? "light" : "dark"
                 let path = base.replacingOccurrences(of: ".png", with: "-\(suffix).png")
-                if renderPanel(engine: engine, settings: .shared, to: path, scheme: scheme) {
+                if renderPanel(engine: engine, settings: .shared, to: path, scheme: scheme,
+                               mode: mode, showSettings: showSettings) {
                     print("面板快照    : \(path)")
                 } else {
                     print("面板快照    : \(path) 渲染失败")
@@ -231,11 +242,14 @@ enum HeadlessRunner {
     private static func renderPanel(engine: MonitorEngine,
                                     settings: Settings,
                                     to path: String,
-                                    scheme: ColorScheme) -> Bool {
+                                    scheme: ColorScheme,
+                                    mode: PanelView.PanelMode = .live,
+                                    showSettings: Bool = false) -> Bool {
         let backdrop = scheme == .dark
             ? Color(red: 0.129, green: 0.129, blue: 0.137)
             : Color(red: 0.980, green: 0.980, blue: 0.984)
-        let content = PanelView(engine: engine, settings: settings)
+        let content = PanelView(engine: engine, settings: settings,
+                                initialMode: mode, showSettingsInitially: showSettings)
             .background(backdrop)
             .environment(\.colorScheme, scheme)
 

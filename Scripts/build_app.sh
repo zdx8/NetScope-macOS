@@ -5,7 +5,7 @@ set -euo pipefail
 
 APP_NAME="NetScope"
 BUNDLE_ID="com.zdx8.netscope"
-APP_VERSION="1.1.2"
+APP_VERSION="1.1.3"
 MIN_MACOS="14.0"
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"

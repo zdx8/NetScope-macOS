@@ -69,6 +69,8 @@ final class MonitorEngine: ObservableObject {
     @Published private(set) var topAppsInHistory: [HistoryStore.AppEntry] = []
     @Published private(set) var dailyTotals: [HistoryStore.DayTotal] = []
     @Published private(set) var historyAvailable = false
+    /// `--demo` 模式标志：历史视图用合成数据，`refreshHistory` 据此跳过真实库读取
+    private var demoLoaded = false
 
     private let appChannel = TrafficChannel(scope: .external)
     private let netChannel = TrafficChannel(scope: .physical)
@@ -126,7 +128,9 @@ final class MonitorEngine: ObservableObject {
     }
 
     /// 读取历史统计（切换到历史视图时调用）。先 flush 一次，让刚采集的数据也能看到。
+    /// demo 模式（`--demo`）注入的是合成历史数据，刷新会把它覆盖成真实库内容，跳过。
     func refreshHistory() {
+        guard !demoLoaded else { return }
         guard let historyStore else { return }
         historyStore.flush(force: true)
         todayTotal = historyStore.total(days: 1).total
@@ -428,6 +432,32 @@ final class MonitorEngine: ObservableObject {
         isTunnelActive = tunnelActive
         tunnelNames = tunnelActive ? ["utun5"] : []
         isUsingPhysicalTotal = true
+
+        // 历史视图也注入合成数据：离屏渲染/官网截图不应含真实使用记录
+        // （哪些应用在用、每天用多少属于个人信息，一律用与实时视图同风格的演示值）
+        let calendar = Calendar.current
+        dailyTotals = (0..<7).reversed().map { offset -> HistoryStore.DayTotal in
+            let date = calendar.date(byAdding: .day, value: -offset, to: Date()) ?? Date()
+            let wave = 2.9e9 + Double(offset % 3) * 5.4e8 + Double(offset) * 2.6e8
+            return HistoryStore.DayTotal(day: HistoryStore.dayString(for: date),
+                                         bytesIn: UInt64(wave * 0.82),
+                                         bytesOut: UInt64(wave * 0.18))
+        }
+        todayTotal = dailyTotals.last?.total ?? 0
+        weekTotal = dailyTotals.reduce(0) { $0 + $1.total }
+        topAppsInHistory = [
+            HistoryStore.AppEntry(key: "/Applications/Safari.app", name: "Safari",
+                                  bytesIn: 1_284_000_000, bytesOut: 96_400_000),
+            HistoryStore.AppEntry(key: "/Applications/Claude.app", name: "Claude",
+                                  bytesIn: 612_000_000, bytesOut: 21_600_000),
+            HistoryStore.AppEntry(key: "/Applications/BaiduNetdisk_mac.app", name: "百度网盘",
+                                  bytesIn: 418_000_000, bytesOut: 3_100_000),
+            HistoryStore.AppEntry(key: "/Applications/WeChat.app", name: "微信",
+                                  bytesIn: 42_800_000, bytesOut: 88_200_000),
+            HistoryStore.AppEntry(key: "/Applications/Xcode.app", name: "Xcode",
+                                  bytesIn: 12_400_000, bytesOut: 640_000)
+        ]
+        demoLoaded = true
     }
 
     // MARK: - 偏好联动
