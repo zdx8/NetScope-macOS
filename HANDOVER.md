@@ -1,6 +1,6 @@
 # NetScope 交接文档
 
-> 版本 1.3.1（build 261119.0355）· 2026-11-19 · 本机实测，非交付时回溯文档
+> 版本 1.3.1（build 261119.0405）· 2026-11-19 · 本机实测，非交付时回溯文档
 
 ---
 
@@ -12,13 +12,13 @@
 1.3.0 起系统功能页带实时 / 日 / 周 / 月四档流量统计，图表与应用排行同步换档。
 
 1.1.4 之后的版本**尚未发 Release、也未同步线上官网**（原因见第 6 节：临时签名 + 依赖 `nettop` 私有输出格式）；
-线上仍是 1.1.3，`docs/` 里的截图与 `index.html` 文案已按 1.3.1 重制/改写但都只在本机 —— 发布时推 `main` 即可。
+2026-11-19 已随 1.3.1 发布：`docs/` 截图与 `index.html` 文案均为 1.3.1，Release 附 `NetScope-macOS-arm64.dmg`（固定命名永久链接）。
 
 ## 2. 交付物与位置
 
 | 交付物 | 路径 | 版本 | 校验 |
 |---|---|---|---|
-| 应用包 | `dist/NetScope.app`（已装到 `/Applications`） | 1.3.1（未发布） | SHA-256（可执行文件）`83f5876598fc3f35c361d8c567cf8cfcfbed622457b51fd5ce9a224bb23293b4` |
+| 应用包 | `dist/NetScope.app`（已装到 `/Applications`） | 1.3.1（发布产物，同 DMG 内一致） | SHA-256（可执行文件）`8a4b3129de314bd18356b5ca472ec98b1c90e7e0d4fddcdd3096c8ab70778c42` |
 | 源码 | `~/AiWork/SoftwareDevelopment/NetScope` | 见 git log | — |
 | 界面快照 | `docs/panel.png`、`panel-light.png`、`panel-dark.png`、`panel-settings.png`、`panel-cpu.png`、`panel-memory.png`、`menubar-badge.png` | — | 已按 1.3.1 重渲染（720×1040，2× 密度；系统功能页为指标卡新样式，设置页含「外观」卡）。离屏渲染 + demo 合成数据，无真实使用记录；`menubar-badge.png` 为 2× 位图合成，非屏幕截图。`panel-history.png` 已随历史页移除而删除 |
 
@@ -26,7 +26,7 @@
 - **线上版本仍是 v1.1.3**：仓库 <https://github.com/zdx8/NetScope-macOS>，官网 <https://zdx8.github.io/NetScope-macOS/>
   （Pages 源 = `main` 分支 `/docs`），Release `v1.1.3` 附 `NetScope-1.1.3-arm64.dmg`（2,003,045 字节，
   SHA-256 `31a16bf5d8ea5565f857fe6f867f645044d0290c6d5a201f6487d88313bf9753`）。
-  1.1.4–1.2.0 **均未提交、未发布**；发布时注意 DMG 按 2026-11-09 新规范命名（`NetScope-macOS-arm64.dmg`，不带版本号）。
+  1.1.4–1.3.0 此前均未提交，已随 1.3.1 一并提交发布；DMG 已按 2026-11-09 新规范命名（`NetScope-macOS-arm64.dmg`，不带版本号，保住 `releases/latest/download/` 永久链接）。
 - 临时签名（`codesign --sign -`），仅本机可双击运行。
 
 ## 3. 怎么跑起来
