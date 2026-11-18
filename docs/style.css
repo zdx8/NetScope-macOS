@@ -6,7 +6,7 @@
    只用于流量和负载，不拿来做页面强调色。 */
 
 :root {
-  color-scheme: light dark;
+  color-scheme: light;
   --font-family-body: Figtree, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", "Source Han Sans SC", "Microsoft YaHei", sans-serif;
   --font-family-heading: Figtree, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", "Source Han Sans SC", "Microsoft YaHei", sans-serif;
   --font-family-code: ui-monospace, "SF Mono", Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
@@ -84,40 +84,37 @@
   --duration-medium: 300ms;
   --ease-standard: cubic-bezier(0.24, 1, 0.4, 1);
 
-  --color-background-surface: light-dark(#ffffff, #262626);
-  --color-background-body: light-dark(#f1f1f1, #1b1b1b);
-  --color-background-card: light-dark(#ffffff, #1b1b1b);
-  --color-background-muted: light-dark(#f1f1f1, #1b1b1b);
-  --color-accent: light-dark(#1b1b1b, #f1f1f1);
-  --color-accent-muted: light-dark(#d4d4d4, #474747);
-  --color-overlay-hover: light-dark(#0000000d, #ffffff0d);
-  --color-overlay-pressed: light-dark(#0000001a, #ffffff1a);
-  --color-text-primary: light-dark(#000000, #ffffff);
-  --color-text-secondary: light-dark(#474747, #9e9e9e);
-  --color-text-disabled: light-dark(#919191, #525252);
-  --color-on-accent: light-dark(#ffffff, #111111);
-  --color-icon-secondary: light-dark(#6a6a6a, #9e9e9e);
-  --color-border: light-dark(#00000014, #ffffff1a);
-  --color-border-emphasized: light-dark(#d4d4d4, #525252);
-  --color-background-gray: light-dark(#e2e2e2, #303030);
-  --color-text-gray: light-dark(#1b1b1b, #d4d4d4);
-  --color-background-orange: light-dark(#ffc7a1, #503424);
-  --color-text-orange: light-dark(#622700, #ffb37e);
-  --color-background-blue: light-dark(#b9d7ff, #253c5a);
-  --color-text-blue: light-dark(#003978, #a1caff);
+  --color-background-surface: #ffffff;
+  --color-background-body: #f1f1f1;
+  --color-background-card: #ffffff;
+  --color-background-muted: #f1f1f1;
+  --color-accent: #1b1b1b;
+  --color-accent-muted: #d4d4d4;
+  --color-overlay-hover: #0000000d;
+  --color-overlay-pressed: #0000001a;
+  --color-text-primary: #000000;
+  --color-text-secondary: #474747;
+  --color-text-disabled: #919191;
+  --color-on-accent: #ffffff;
+  --color-icon-secondary: #6a6a6a;
+  --color-border: #00000014;
+  --color-border-emphasized: #d4d4d4;
+  --color-background-gray: #e2e2e2;
+  --color-text-gray: #1b1b1b;
+  --color-background-orange: #ffc7a1;
+  --color-text-orange: #622700;
+  --color-background-blue: #b9d7ff;
+  --color-text-blue: #003978;
 
-  --shadow-low: 0 2px 4px light-dark(oklch(0 0 0 / 5%), oklch(0 0 0 / 25%)), 0 4px 8px light-dark(oklch(0 0 0 / 10%), oklch(0 0 0 / 40%)), inset 0 0 0 1px light-dark(transparent, oklch(1 0 0 / 8%));
-  --shadow-med: 0 2px 4px light-dark(oklch(0 0 0 / 5%), oklch(0 0 0 / 35%)), 0 4px 12px light-dark(oklch(0 0 0 / 10%), oklch(0 0 0 / 50%)), inset 0 0 0 1px light-dark(transparent, oklch(1 0 0 / 12%));
+  --shadow-low: 0 2px 4px oklch(0 0 0 / 5%), 0 4px 8px oklch(0 0 0 / 10%);
+  --shadow-med: 0 2px 4px oklch(0 0 0 / 5%), 0 4px 12px oklch(0 0 0 / 10%);
 
   /* 应用数据色。浅色加深，是为了在白底上达到正文对比度。 */
-  --color-up: light-dark(#b25a00, #ffa23e);
-  --color-down: light-dark(#0a63e6, #4d9aff);
-  --color-cpu: light-dark(#0f766e, #4fd1c5);
-  --color-memory: light-dark(#6d28d9, #a78bfa);
+  --color-up: #b25a00;
+  --color-down: #0a63e6;
+  --color-cpu: #0f766e;
+  --color-memory: #6d28d9;
 }
-
-html[data-theme="light"] { color-scheme: light; }
-html[data-theme="dark"] { color-scheme: dark; }
 
 @media (width < 1024px) and (pointer: coarse) {
   :root {
@@ -685,9 +682,6 @@ dd code {
   border: 0;
 }
 
-html[data-resolved="light"] .mode-dark { display: none; }
-html[data-resolved="dark"] .mode-light { display: none; }
-
 .hero .badge-row,
 .hero .readout { margin-bottom: var(--spacing-6); }
 
@@ -708,24 +702,11 @@ html[data-resolved="dark"] .mode-light { display: none; }
   padding-left: 1.15rem;
 }
 
-@media (min-width: 760px) {
-  .hero-stage {
-    grid-template-columns: repeat(2, minmax(0, 360px));
-  }
-
-  .hero-stage > .stack-sm { grid-column: 1 / -1; max-width: 40rem; }
-}
-
-@media (min-width: 1080px) {
+@media (min-width: 960px) {
   .hero { padding-top: var(--spacing-12); }
 
   .hero-stage {
-    grid-template-columns: 360px 360px minmax(0, 1fr);
-  }
-
-  .hero-stage > .stack-sm {
-    grid-column: auto;
-    max-width: none;
+    grid-template-columns: 360px minmax(0, 1fr);
   }
 }
 

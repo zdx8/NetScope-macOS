@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="color-scheme" content="light dark">
+  <meta name="color-scheme" content="light">
   <title>NetScope — 点开就知道刚才是谁在跑流量</title>
   <meta name="description" content="macOS 菜单栏里的应用级流量、CPU 与内存监控。点开一段，就知道刚才是谁在跑。数据留在本机。">
   <link rel="icon" href="images/icon.png" type="image/png">
@@ -11,18 +11,6 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&amp;display=swap">
   <link rel="stylesheet" href="style.css">
-  <script>
-    (function () {
-      var mode = "system";
-      try {
-        var saved = localStorage.getItem("netscope-appearance");
-        if (saved === "light" || saved === "dark" || saved === "system") mode = saved;
-      } catch (e) {}
-      if (mode === "light" || mode === "dark") document.documentElement.setAttribute("data-theme", mode);
-      var dark = mode === "dark" || (mode !== "light" && window.matchMedia("(prefers-color-scheme: dark)").matches);
-      document.documentElement.setAttribute("data-resolved", dark ? "dark" : "light");
-    })();
-  </script>
 </head>
 <body>
   <a class="skip" href="#main">跳到内容</a>
@@ -39,11 +27,6 @@
         <a href="#download">下载</a>
       </nav>
       <div class="top-actions">
-        <div class="segmented" role="radiogroup" aria-label="外观" data-group="appearance">
-          <button type="button" role="radio" data-appearance="system" aria-checked="true" tabindex="0">跟随系统</button>
-          <button type="button" role="radio" data-appearance="light" aria-checked="false" tabindex="-1">浅色</button>
-          <button type="button" role="radio" data-appearance="dark" aria-checked="false" tabindex="-1">深色</button>
-        </div>
         <a class="btn btn-primary" href="https://github.com/zdx8/NetScope-macOS/releases/latest/download/NetScope-macOS-arm64.dmg">下载</a>
       </div>
     </div>
@@ -66,27 +49,17 @@
 
       <div class="readout">
         <figure>
-          <img class="menubar" src="menubar-badge.png" width="298" height="52" alt="浅色菜单栏徽标，一项三段：CPU、内存、网络，中间用竖线分开。图为离屏合成，不是实时读数。">
-          <figcaption class="caption">浅色菜单栏</figcaption>
-        </figure>
-        <figure>
-          <img class="menubar" src="menubar-badge-dark.png" width="298" height="52" alt="深色菜单栏徽标，同样是 CPU、内存、网络三段。图为离屏合成。">
-          <figcaption class="caption">深色菜单栏</figcaption>
+          <img class="menubar" src="menubar-badge.png" width="298" height="52" alt="菜单栏徽标，一项三段：CPU、内存、网络，中间用竖线分开。图为离屏合成，不是实时读数。">
+          <figcaption class="caption">菜单栏</figcaption>
         </figure>
         <p class="note">整块约 129pt。三段可以单独关掉。网络段可以改成 40 点趋势图。面板开着时再点菜单栏，是收起，不换页。</p>
       </div>
 
       <div class="hero-stage">
         <figure class="panel-card">
-          <figcaption class="caption">浅色面板 · 系统功能 · 实时</figcaption>
+          <figcaption class="caption">系统功能 · 实时</figcaption>
           <div class="panel-frame">
-            <img src="panel-light.png" width="720" height="1120" alt="浅色系统功能页。上方左为磁盘占用、右为本机速率，中间是 60 秒流量曲线，下方应用按当前上行和下行排列。数字为合成数据。">
-          </div>
-        </figure>
-        <figure class="panel-card">
-          <figcaption class="caption">深色面板 · 系统功能 · 实时</figcaption>
-          <div class="panel-frame">
-            <img src="panel-dark.png" width="720" height="1120" alt="深色系统功能页，布局与浅色相同：磁盘占用、本机速率、实时流量曲线和应用列表。数字为合成数据。">
+            <img src="panel-light.png" width="720" height="1120" alt="系统功能页。上方左为磁盘占用、右为本机速率，中间是 60 秒流量曲线，下方应用按当前上行和下行排列。数字为合成数据。">
           </div>
         </figure>
         <div class="stack-sm">
@@ -95,7 +68,7 @@
             <span><i class="swatch up" aria-hidden="true"></i>上行</span>
             <span><i class="swatch down" aria-hidden="true"></i>下行</span>
           </p>
-          <p class="note">面板固定 360×560。外观可以跟随系统，也可以固定浅色或深色，只影响弹出面板。菜单栏徽标跟着系统菜单栏的深浅，应用改不了。本页截图都是 1.3.1 的离屏渲染，数字是合成的，用来看清界面，不是某台电脑的用量。</p>
+          <p class="note">面板固定 360×560。本页截图都是 1.3.1 的离屏渲染，数字是合成的，用来看清界面，不是某台电脑的用量。</p>
         </div>
       </div>
     </section>
@@ -115,7 +88,6 @@
           <p class="visually-hidden" id="segment-status" aria-live="polite"></p>
           <div data-shot-group="segment" data-shot="cpu" hidden>
             <p>清理释放页把 CPU 和内存并排。两条曲线叠在同一条 0–100% 刻度上，刻度不按峰值拉满。程序列表按 CPU 排序。鼠标悬停在行尾，可以关闭那个应用。</p>
-            <p class="note gap-top-sm">这里只有浅色离屏图。深色面板是同一套结构。</p>
           </div>
           <div data-shot-group="segment" data-shot="memory" hidden>
             <p>还是清理释放。排序改成按内存。进程 CPU 按单核计，和活动监视器一样：一颗核跑满是 100%，所以榜首程序的百分比可以高于顶部的系统占用。</p>
@@ -151,22 +123,21 @@
         </div>
         <div id="segment-stage">
           <figure class="panel-card" data-shot-group="segment" data-shot="cpu" hidden>
-            <figcaption class="caption">清理释放 · 按 CPU · 浅色</figcaption>
+            <figcaption class="caption">清理释放 · 按 CPU</figcaption>
             <div class="panel-frame">
-              <img src="panel-cpu.png" width="720" height="1120" alt="浅色清理释放页，程序列表按 CPU 排序。上方是 CPU 和内存两张卡，中间两条曲线共用 0 到 100% 刻度。数字为合成数据。" loading="lazy">
+              <img src="panel-cpu.png" width="720" height="1120" alt="清理释放页，程序列表按 CPU 排序。上方是 CPU 和内存两张卡，中间两条曲线共用 0 到 100% 刻度。数字为合成数据。" loading="lazy">
             </div>
           </figure>
           <figure class="panel-card" data-shot-group="segment" data-shot="memory" hidden>
-            <figcaption class="caption">清理释放 · 按内存 · 浅色</figcaption>
+            <figcaption class="caption">清理释放 · 按内存</figcaption>
             <div class="panel-frame">
-              <img src="panel-memory.png" width="720" height="1120" alt="浅色清理释放页，程序列表按内存占用排序。数字为合成数据。" loading="lazy">
+              <img src="panel-memory.png" width="720" height="1120" alt="清理释放页，程序列表按内存占用排序。数字为合成数据。" loading="lazy">
             </div>
           </figure>
           <figure class="panel-card" data-shot-group="segment" data-shot="network">
-            <figcaption class="caption">系统功能 · 随本页外观</figcaption>
+            <figcaption class="caption">系统功能 · 实时</figcaption>
             <div class="panel-frame">
-              <img class="mode-light" src="panel-light.png" width="720" height="1120" alt="浅色系统功能页，实时流量。磁盘占用在左，本机速率在右，下方是曲线和应用列表。数字为合成数据。">
-              <img class="mode-dark" src="panel-dark.png" width="720" height="1120" alt="深色系统功能页，实时流量。布局与浅色相同。数字为合成数据。">
+              <img src="panel-light.png" width="720" height="1120" alt="系统功能页，实时流量。磁盘占用在左，本机速率在右，下方是曲线和应用列表。数字为合成数据。">
             </div>
           </figure>
         </div>
@@ -192,62 +163,30 @@
         </div>
         <p class="visually-hidden" id="range-status" aria-live="polite"></p>
         <div id="range-stage">
-          <div class="pair" data-shot-group="range" data-shot="live">
-            <figure class="panel-card">
-              <figcaption class="caption">浅色 · 实时 · 60 秒</figcaption>
-              <div class="panel-frame">
-                <img src="panel-light.png" width="720" height="1120" alt="浅色，流量统计为实时。曲线大约覆盖 60 秒，应用列表是当前速率。合成数据。">
-              </div>
-            </figure>
-            <figure class="panel-card">
-              <figcaption class="caption">深色 · 实时 · 60 秒</figcaption>
-              <div class="panel-frame">
-                <img src="panel-dark.png" width="720" height="1120" alt="深色，流量统计为实时。曲线和应用列表与浅色同一档。合成数据。">
-              </div>
-            </figure>
-          </div>
-          <div class="pair" data-shot-group="range" data-shot="day" hidden>
-            <figure class="panel-card">
-              <figcaption class="caption">浅色 · 日 · 过去 24 小时</figcaption>
-              <div class="panel-frame">
-                <img src="panel-day.png" width="720" height="1120" alt="浅色，流量统计为日。曲线是过去 24 小时的 5 分钟平均，应用列表标题也是过去 24 小时的累计。合成数据。" loading="lazy">
-              </div>
-            </figure>
-            <figure class="panel-card">
-              <figcaption class="caption">深色 · 日 · 过去 24 小时</figcaption>
-              <div class="panel-frame">
-                <img src="panel-day-dark.png" width="720" height="1120" alt="深色，流量统计为日。曲线和列表都落在过去 24 小时。合成数据。" loading="lazy">
-              </div>
-            </figure>
-          </div>
-          <div class="pair" data-shot-group="range" data-shot="week" hidden>
-            <figure class="panel-card">
-              <figcaption class="caption">浅色 · 周 · 过去 7 天</figcaption>
-              <div class="panel-frame">
-                <img src="panel-week.png" width="720" height="1120" alt="浅色，流量统计为周。曲线是过去 7 天的 30 分钟平均，应用列表是这 7 天的累计。合成数据。" loading="lazy">
-              </div>
-            </figure>
-            <figure class="panel-card">
-              <figcaption class="caption">深色 · 周 · 过去 7 天</figcaption>
-              <div class="panel-frame">
-                <img src="panel-week-dark.png" width="720" height="1120" alt="深色，流量统计为周。曲线和列表都落在过去 7 天。合成数据。" loading="lazy">
-              </div>
-            </figure>
-          </div>
-          <div class="pair" data-shot-group="range" data-shot="month" hidden>
-            <figure class="panel-card">
-              <figcaption class="caption">浅色 · 月 · 过去 30 天</figcaption>
-              <div class="panel-frame">
-                <img src="panel-month.png" width="720" height="1120" alt="浅色，流量统计为月。曲线是过去 30 天的 2 小时平均，应用列表是这 30 天的累计。合成数据。" loading="lazy">
-              </div>
-            </figure>
-            <figure class="panel-card">
-              <figcaption class="caption">深色 · 月 · 过去 30 天</figcaption>
-              <div class="panel-frame">
-                <img src="panel-month-dark.png" width="720" height="1120" alt="深色，流量统计为月。曲线和列表都落在过去 30 天。合成数据。" loading="lazy">
-              </div>
-            </figure>
-          </div>
+          <figure class="panel-card" data-shot-group="range" data-shot="live">
+            <figcaption class="caption">实时 · 60 秒</figcaption>
+            <div class="panel-frame">
+              <img src="panel-light.png" width="720" height="1120" alt="流量统计为实时。曲线大约覆盖 60 秒，应用列表是当前速率。合成数据。">
+            </div>
+          </figure>
+          <figure class="panel-card" data-shot-group="range" data-shot="day" hidden>
+            <figcaption class="caption">日 · 过去 24 小时</figcaption>
+            <div class="panel-frame">
+              <img src="panel-day.png" width="720" height="1120" alt="流量统计为日。曲线是过去 24 小时的 5 分钟平均，应用列表标题也是过去 24 小时的累计。合成数据。" loading="lazy">
+            </div>
+          </figure>
+          <figure class="panel-card" data-shot-group="range" data-shot="week" hidden>
+            <figcaption class="caption">周 · 过去 7 天</figcaption>
+            <div class="panel-frame">
+              <img src="panel-week.png" width="720" height="1120" alt="流量统计为周。曲线是过去 7 天的 30 分钟平均，应用列表是这 7 天的累计。合成数据。" loading="lazy">
+            </div>
+          </figure>
+          <figure class="panel-card" data-shot-group="range" data-shot="month" hidden>
+            <figcaption class="caption">月 · 过去 30 天</figcaption>
+            <div class="panel-frame">
+              <img src="panel-month.png" width="720" height="1120" alt="流量统计为月。曲线是过去 30 天的 2 小时平均，应用列表是这 30 天的累计。合成数据。" loading="lazy">
+            </div>
+          </figure>
         </div>
         <div class="table-wrap">
           <table>
@@ -328,9 +267,9 @@
           </ul>
         </div>
         <figure class="panel-card">
-          <figcaption class="caption">设置 · 浅色</figcaption>
+          <figcaption class="caption">设置</figcaption>
           <div class="panel-frame">
-            <img src="panel-settings.png" width="720" height="1120" alt="浅色设置页。包含菜单栏三段开关、网络图标、外观、刷新间隔、显示条数、只统计物理链路、流量告警和开机自动启动。" loading="lazy">
+            <img src="panel-settings.png" width="720" height="1120" alt="设置页。包含菜单栏三段开关、网络图标、外观、刷新间隔、显示条数、只统计物理链路、流量告警和开机自动启动。" loading="lazy">
           </div>
         </figure>
       </div>
@@ -402,45 +341,6 @@
   </noscript>
   <script>
     (function () {
-      var root = document.documentElement;
-      var KEY = "netscope-appearance";
-
-      function systemDark() {
-        return window.matchMedia("(prefers-color-scheme: dark)").matches;
-      }
-
-      function mode() {
-        return root.getAttribute("data-theme") || "system";
-      }
-
-      function applyAppearance(next, persist) {
-        if (next === "system") root.removeAttribute("data-theme");
-        else root.setAttribute("data-theme", next);
-        var dark = next === "dark" || (next !== "light" && systemDark());
-        root.setAttribute("data-resolved", dark ? "dark" : "light");
-        document.querySelectorAll("[data-appearance]").forEach(function (btn) {
-          var on = btn.getAttribute("data-appearance") === next;
-          btn.setAttribute("aria-checked", on ? "true" : "false");
-          btn.tabIndex = on ? 0 : -1;
-        });
-        if (persist) {
-          try { localStorage.setItem(KEY, next); } catch (e) {}
-        }
-      }
-
-      applyAppearance(mode(), false);
-
-      var appearance = document.querySelector('[data-group="appearance"]');
-      appearance.addEventListener("click", function (event) {
-        var btn = event.target.closest("[data-appearance]");
-        if (!btn) return;
-        applyAppearance(btn.getAttribute("data-appearance"), true);
-      });
-
-      window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", function () {
-        if (mode() === "system") applyAppearance("system", false);
-      });
-
       var labels = {
         cpu: "正在显示清理释放，按 CPU 排序",
         memory: "正在显示清理释放，按内存排序",
@@ -487,17 +387,6 @@
 
       bind("segment");
       bind("range");
-      appearance.addEventListener("keydown", function (event) {
-        if (event.key !== "ArrowRight" && event.key !== "ArrowLeft" && event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
-        var btns = Array.prototype.slice.call(appearance.querySelectorAll("[data-appearance]"));
-        var index = btns.indexOf(document.activeElement);
-        if (index < 0) return;
-        event.preventDefault();
-        var dir = event.key === "ArrowRight" || event.key === "ArrowDown" ? 1 : -1;
-        var next = btns[(index + dir + btns.length) % btns.length];
-        next.focus();
-        applyAppearance(next.getAttribute("data-appearance"), true);
-      });
     })();
   </script>
 </body>
