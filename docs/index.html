@@ -1,400 +1,504 @@
-<!doctype html>
-<html lang="zh-CN">
+<!DOCTYPE html>
+<html lang="zh-CN" data-astryx-theme="neutral">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>NetScope — macOS 菜单栏网络流量监控</title>
-<meta name="description" content="macOS 原生菜单栏应用，按应用统计上下行流量。菜单栏三段直出网络 / CPU / 内存，流量统计分实时、日、周、月四档，图表与应用排行同步换档，面板主题可切换。无 root、无内核扩展、零第三方依赖，数据全部留在本机。">
-<link rel="stylesheet" href="style.css">
-<link rel="icon" href="images/icon.png">
-<meta property="og:title" content="NetScope — macOS 菜单栏网络流量监控">
-<meta property="og:description" content="点开就知道，刚才到底是谁在跑流量。">
-<meta property="og:image" content="panel-dark.png">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>NetScope — 点开就知道刚才是谁在跑流量</title>
+  <meta name="description" content="macOS 菜单栏里的应用级流量、CPU 与内存监控。点开一段，就知道刚才是谁在跑。数据留在本机。">
+  <link rel="icon" href="images/icon.png" type="image/png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&amp;display=swap">
+  <link rel="stylesheet" href="style.css">
+  <script>
+    (function () {
+      var mode = "system";
+      try {
+        var saved = localStorage.getItem("netscope-appearance");
+        if (saved === "light" || saved === "dark" || saved === "system") mode = saved;
+      } catch (e) {}
+      if (mode === "light" || mode === "dark") document.documentElement.setAttribute("data-theme", mode);
+      var dark = mode === "dark" || (mode !== "light" && window.matchMedia("(prefers-color-scheme: dark)").matches);
+      document.documentElement.setAttribute("data-resolved", dark ? "dark" : "light");
+    })();
+  </script>
 </head>
 <body>
-
-<header class="topbar">
-  <div class="wrap topbar-inner">
-    <a class="brand" href="#top">
-      <img src="images/icon.png" alt="" width="22" height="22">
-      <span>NetScope</span>
-    </a>
-    <nav class="topnav">
-      <a href="#tiers">流量统计</a>
-      <a href="#features">功能</a>
-      <a href="#shots">界面</a>
-      <a href="#install">安装</a>
-      <a class="ghost" href="https://github.com/zdx8/NetScope-macOS">GitHub</a>
-    </nav>
-  </div>
-</header>
-
-<main id="top">
-
-  <!-- ============ Hero ============ -->
-  <section class="hero">
-    <div class="wrap hero-inner">
-      <p class="pill"><span class="dot"></span>v1.3.1 · Apple 芯片 · macOS 14+</p>
-      <h1>点开就知道，<br>刚才到底是谁在跑流量。</h1>
-      <p class="lede">
-        菜单栏常驻三段数值——网络速率、CPU、内存，点哪段弹哪段详情。
-        流量统计分<strong>实时、日、周、月</strong>四档，曲线与应用排行一起换档；
-        按应用聚合，总量只认物理网卡。无 root、无内核扩展、零第三方依赖。
-      </p>
-      <div class="cta">
-        <a class="btn primary" href="https://github.com/zdx8/NetScope-macOS/releases/latest/download/NetScope-macOS-arm64.dmg">
-          下载 v1.3.1
-        </a>
-        <a class="btn" href="https://github.com/zdx8/NetScope-macOS">查看源码</a>
-      </div>
-      <p class="fineprint">DMG 2.2 MB · 永久链接始终指向最新版 · 临时签名，分发需自行签名公证</p>
-
-      <!-- 菜单栏实境：真实徽标位图放进 macOS 菜单栏样式的容器 -->
-      <div class="menubar-mock" role="img" aria-label="macOS 菜单栏中的 NetScope：CPU、内存、网络三段数值">
-        <div class="mb-left">
-          <span class="mb-app">⌘ NetScope</span>
-          <span class="mb-menu">文件　窗口　帮助</span>
+  <a class="skip" href="#main">跳到内容</a>
+  <header class="top">
+    <div class="wrap top-bar">
+      <a class="brand" href="#top">
+        <img src="images/icon.png" width="256" height="256" alt="">
+        <span>NetScope</span>
+      </a>
+      <nav class="nav" aria-label="页内">
+        <a href="#segments">三段</a>
+        <a href="#ranges">四档</a>
+        <a href="#limits">口径</a>
+        <a href="#download">下载</a>
+      </nav>
+      <div class="top-actions">
+        <div class="segmented" role="radiogroup" aria-label="外观" data-group="appearance">
+          <button type="button" role="radio" data-appearance="system" aria-checked="true" tabindex="0">跟随系统</button>
+          <button type="button" role="radio" data-appearance="light" aria-checked="false" tabindex="-1">浅色</button>
+          <button type="button" role="radio" data-appearance="dark" aria-checked="false" tabindex="-1">深色</button>
         </div>
-        <div class="mb-right">
-          <img src="menubar-badge-dark.png" alt="NetScope 徽标：CPU 42%、MEM 79%、网络上行 1.2M 下行 8.4M">
-          <span class="mb-clock">周四 04:54</span>
-        </div>
+        <a class="btn btn-primary" href="https://github.com/zdx8/NetScope-macOS/releases/latest/download/NetScope-macOS-arm64.dmg">下载</a>
       </div>
     </div>
-  </section>
+  </header>
 
-  <!-- ============ 数字条 ============ -->
-  <section class="strip">
-    <div class="wrap strip-inner">
-      <div class="stat"><strong>0</strong><span>第三方依赖<br>纯系统框架</span></div>
-      <div class="stat"><strong>1 MB</strong><span>可执行文件<br>装完即走</span></div>
-      <div class="stat"><strong>0.06%</strong><span>菜单栏常驻<br>CPU 占用</span></div>
-      <div class="stat"><strong>100%</strong><span>数据留在本机<br>不联网上报</span></div>
-    </div>
-  </section>
+  <main id="main">
+    <section class="hero wrap" id="top" aria-labelledby="page-title">
+      <div class="badge-row">
+        <span class="badge">1.3.1</span>
+        <span class="badge">Apple 芯片</span>
+        <span class="badge">macOS 14+</span>
+        <span class="badge">数据留在本机</span>
+      </div>
+      <h1 id="page-title">点开就知道<br>刚才是谁在跑流量</h1>
+      <p class="lede">菜单栏里只占一项。CPU、内存、网络用竖线分成三段，点哪段，弹哪段。同一个应用的多个进程并成一行。图表从实时换到日、周、月时，下面的应用排行一起换。</p>
+      <div class="actions">
+        <a class="btn btn-primary btn-lg" href="https://github.com/zdx8/NetScope-macOS/releases/latest/download/NetScope-macOS-arm64.dmg">下载 DMG</a>
+        <a class="btn btn-ghost btn-lg" href="https://github.com/zdx8/NetScope-macOS">源码</a>
+      </div>
 
-  <!-- ============ 四档流量统计（交互） ============ -->
-  <section id="tiers" class="section">
-    <div class="wrap">
-      <p class="eyebrow">四档流量统计</p>
-      <h2>从这一秒，看到这个月。</h2>
-      <p class="sub">
-        图表与应用列表始终一起换档：实时看速率，日 / 周 / 月看平均速率与区间累计。
-        点一下试试——和 App 里的芯片切换是同一个交互。
-      </p>
-
-      <div class="viewer-stage">
-        <div class="seg" role="group" aria-label="流量统计档位">
-          <button type="button" data-tier="live" aria-pressed="true">实时</button>
-          <button type="button" data-tier="day" aria-pressed="false">日</button>
-          <button type="button" data-tier="week" aria-pressed="false">周</button>
-          <button type="button" data-tier="month" aria-pressed="false">月</button>
-        </div>
-
-        <figure class="viewer">
-          <img id="tier-img" src="panel-dark.png"
-               alt="NetScope 实时档：60 秒速率曲线，应用列表按当前速率排序">
-          <figcaption id="tier-caption">
-            实时：每秒刷新的当前速率曲线，60 秒滑动窗口；应用列表按此刻速率排序，谁在跑流量一眼可见。
-          </figcaption>
+      <div class="readout">
+        <figure>
+          <img class="menubar" src="menubar-badge.png" width="298" height="52" alt="浅色菜单栏徽标，一项三段：CPU、内存、网络，中间用竖线分开。图为离屏合成，不是实时读数。">
+          <figcaption class="caption">浅色菜单栏</figcaption>
         </figure>
-
-        <div class="tier-meta" aria-live="polite">
-          <div class="meta"><span class="k">时间窗</span><span class="v" id="meta-window">60 秒</span></div>
-          <div class="meta"><span class="k">平均窗口</span><span class="v" id="meta-avg">每秒刷新</span></div>
-          <div class="meta"><span class="k">数据保留</span><span class="v" id="meta-keep">内存环形缓冲，不落盘</span></div>
-        </div>
-      </div>
-
-      <!-- 分层时间桶：数据沉淀机制 -->
-      <div class="buckets-block">
-        <h3>数据怎么沉淀</h3>
-        <p class="sub">
-          每秒增量先落进 5 分钟桶，落盘时后台自动聚合成 30 分钟与 2 小时桶——
-          父桶按实际所属区间整体重算覆盖，不会越加越重；过期桶自动清理。
-          SQLite 单文件，全部留在本机。
-        </p>
-        <div class="buckets">
-          <div class="bucket">
-            <span class="b-gran">5 分钟桶</span>
-            <span class="b-keep">保留 26 小时</span>
-            <span class="b-desc">支撑日视图与每秒增量落盘</span>
-          </div>
-          <div class="b-arrow"><span class="line">⟶</span>自动聚合<br>覆盖写不翻倍</div>
-          <div class="bucket">
-            <span class="b-gran">30 分钟桶</span>
-            <span class="b-keep">保留 8.5 天</span>
-            <span class="b-desc">支撑周视图的长节奏</span>
-          </div>
-          <div class="b-arrow"><span class="line">⟶</span>自动聚合<br>过期自动清理</div>
-          <div class="bucket">
-            <span class="b-gran">2 小时桶</span>
-            <span class="b-keep">保留 31.5 天</span>
-            <span class="b-desc">支撑月视图的长期趋势</span>
-          </div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- ============ 三根支柱 ============ -->
-  <section id="features" class="section muted">
-    <div class="wrap">
-      <p class="eyebrow">为什么好用</p>
-      <h2>三件事，做扎实。</h2>
-      <div class="grid">
-
-        <article class="card">
-          <div class="card-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <rect x="3" y="8" width="18" height="9" rx="3"/>
-              <path d="M9 8v9M15 8v9"/>
-              <path d="M5.5 5h13" opacity=".45"/>
-            </svg>
-          </div>
-          <h3>菜单栏三段直出</h3>
-          <p>网络速率、CPU、内存各占一段，合成一项菜单栏空间。三段可独立开关，
-             点哪段弹哪段详情；数值按深浅色分别校准对比度，模板渲染跟随系统外观。</p>
-        </article>
-
-        <article class="card">
-          <div class="card-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <rect x="3" y="4" width="18" height="7" rx="2"/>
-              <rect x="3" y="14" width="18" height="7" rx="2"/>
-              <path d="M7 7.5h4M7 17.5h3" opacity=".6"/>
-            </svg>
-          </div>
-          <h3>双页签，各管一摊</h3>
-          <p>「清理释放」看 CPU / 内存占用大户，悬停进程行一键关闭；
-             「系统功能」看磁盘占用、本机速率与四档流量统计，一个面板不打转。</p>
-        </article>
-
-        <article class="card">
-          <div class="card-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <path d="M12 3l7 3v5.2c0 4.4-2.9 7.4-7 8.8-4.1-1.4-7-4.4-7-8.8V6l7-3z"/>
-              <path d="M9.5 12.5l2-2.2 2 2.2" opacity=".7"/>
-              <path d="M11.5 10.3v4" opacity=".7"/>
-            </svg>
-          </div>
-          <h3>按应用聚合，口径干净</h3>
-          <p>Chrome 的 Helper 归并成一条 <code>Google Chrome</code>（沿 <code>proc_pidpath</code> 找最外层 .app）；
-             开 TUN 型 VPN 时总量只认物理网卡去重，隧道内应用列表带盾牌标注。</p>
-        </article>
-
-      </div>
-    </div>
-  </section>
-
-  <!-- ============ 界面全览 ============ -->
-  <section id="shots" class="section">
-    <div class="wrap">
-      <p class="eyebrow">界面</p>
-      <h2>每个页签都值得看一眼。</h2>
-      <div class="shots">
-
-        <div class="shot-pair">
-          <figure class="shot">
-            <img src="panel-cpu.png" alt="NetScope 清理释放页：CPU 与内存指标卡，程序按 CPU 排序">
-            <figcaption>清理释放 · 按 CPU：双指标卡并排，程序列表按占用排序，悬停行尾可一键关闭</figcaption>
-          </figure>
-          <figure class="shot">
-            <img src="panel-memory.png" alt="NetScope 清理释放页：按内存排序">
-            <figcaption>清理释放 · 按内存：切一档排序，谁在吃内存一目了然</figcaption>
-          </figure>
-        </div>
-
-        <div class="shot-pair">
-          <figure class="shot">
-            <img src="panel-light.png" alt="NetScope 浅色主题">
-            <figcaption>浅色主题：面板可「跟随系统」，也可在设置里固定浅色或深色</figcaption>
-          </figure>
-          <figure class="shot">
-            <img src="panel-dark.png" alt="NetScope 深色主题">
-            <figcaption>深色主题：两套主题都按对比度校准，菜单栏徽标跟随系统菜单栏深浅</figcaption>
-          </figure>
-        </div>
-
-        <figure class="shot wide">
-          <img src="panel-settings.png" alt="NetScope 设置页">
-          <figcaption>设置：外观主题、刷新间隔、显示条数、列表口径、告警阈值、开机启动</figcaption>
+        <figure>
+          <img class="menubar" src="menubar-badge-dark.png" width="298" height="52" alt="深色菜单栏徽标，同样是 CPU、内存、网络三段。图为离屏合成。">
+          <figcaption class="caption">深色菜单栏</figcaption>
         </figure>
-
+        <p class="note">整块约 129pt。三段可以单独关掉。网络段可以改成 40 点趋势图。面板开着时再点菜单栏，是收起，不换页。</p>
       </div>
-    </div>
-  </section>
 
-  <!-- ============ 工程细节 ============ -->
-  <section class="section muted">
-    <div class="wrap">
-      <p class="eyebrow">怎么做的</p>
-      <h2>不糊弄的三个细节。</h2>
-      <div class="craft-grid">
-
-        <article class="craft">
-          <span class="c-num">01</span>
-          <h3>数据从哪来</h3>
-          <p>不引依赖，把系统自带的 <code>nettop</code> 接到伪终端上实时读：</p>
-          <pre><code>nettop -P -x -L 0 -s 1 -J bytes_in,bytes_out -t external</code></pre>
-          <ul>
-            <li><code>-L N</code> 的采样窗口固定 30 秒，与 N 无关——没法秒级，所以接 pty 自己读；</li>
-            <li>pty 让全缓冲变行缓冲，进程退出先 <code>SIGTERM</code> 再补 <code>SIGKILL</code>（实测 nettop 在 pty 下忽略 TERM）；</li>
-            <li>输出是进程自启动以来的累计字节，速率靠两次采样差分。</li>
-          </ul>
-        </article>
-
-        <article class="craft">
-          <span class="c-num">02</span>
-          <h3>告警怎么不吵人</h3>
-          <ul>
-            <li>连续 3 次采样都超阈值才发通知——下载开始那一秒的峰值不会打扰你；</li>
-            <li>同应用 10 分钟冷却，不连环轰炸；</li>
-            <li>掉到阈值以下立即清零，下次从头计。</li>
-          </ul>
-        </article>
-
-        <article class="craft">
-          <span class="c-num">03</span>
-          <h3>凭什么敢说轻</h3>
-          <ul>
-            <li>主进程 CPU 0.06%、内存 32 MB（10 秒均值实测）；</li>
-            <li>两个 nettop 子进程各 0.1%、6 MB；</li>
-            <li>可执行文件 1 MB，装进菜单栏就安静待着。</li>
-          </ul>
-        </article>
-
-      </div>
-    </div>
-  </section>
-
-  <!-- ============ 安装 ============ -->
-  <section id="install" class="section">
-    <div class="wrap">
-      <p class="eyebrow">安装</p>
-      <h2>两条路，都一步到。</h2>
-      <div class="install-grid">
-        <div class="install-col">
-          <h3>下载 DMG</h3>
-          <ol>
-            <li>从 <a href="https://github.com/zdx8/NetScope-macOS/releases/latest/download/NetScope-macOS-arm64.dmg">这里</a> 下载 <code>NetScope-macOS-arm64.dmg</code>（永久链接，始终最新版）</li>
-            <li>打开后把 NetScope 拖进「应用程序」，启动即可</li>
-            <li>首次启动若被 Gatekeeper 拦下：右键 →「打开」，或执行下面的命令</li>
-          </ol>
-          <pre><code>xattr -dr com.apple.quarantine /Applications/NetScope.app</code></pre>
-          <p class="note">包为临时签名（<code>codesign --sign -</code>），自用没问题；分发给别人请自行签名与公证。Release 附 <code>.sha256</code> 校验文件。</p>
-        </div>
-
-        <div class="install-col">
-          <h3>从源码构建</h3>
-          <ol>
-            <li>需要 Xcode 命令行工具（Swift 6.x），无需其他依赖</li>
-            <li>克隆后一条命令打包并启动</li>
-          </ol>
-          <pre><code>git clone https://github.com/zdx8/NetScope-macOS.git
-cd NetScope-macOS
-bash Scripts/build_app.sh</code></pre>
-          <p class="note">首次构建约 24 秒，增量 6–7 秒。产物在 <code>dist/NetScope.app</code>；另附 214 项自检与受控负载校准脚本。</p>
+      <div class="hero-stage">
+        <figure class="panel-card">
+          <figcaption class="caption">浅色面板 · 系统功能 · 实时</figcaption>
+          <div class="panel-frame">
+            <img src="panel-light.png" width="720" height="1120" alt="浅色系统功能页。上方左为磁盘占用、右为本机速率，中间是 60 秒流量曲线，下方应用按当前上行和下行排列。数字为合成数据。">
+          </div>
+        </figure>
+        <figure class="panel-card">
+          <figcaption class="caption">深色面板 · 系统功能 · 实时</figcaption>
+          <div class="panel-frame">
+            <img src="panel-dark.png" width="720" height="1120" alt="深色系统功能页，布局与浅色相同：磁盘占用、本机速率、实时流量曲线和应用列表。数字为合成数据。">
+          </div>
+        </figure>
+        <div class="stack-sm">
+          <p>系统功能页。左是磁盘占用和可用空间，右是本机速率，上行在上、下行在下。</p>
+          <p class="legend">
+            <span><i class="swatch up" aria-hidden="true"></i>上行</span>
+            <span><i class="swatch down" aria-hidden="true"></i>下行</span>
+          </p>
+          <p class="note">面板固定 360×560。外观可以跟随系统，也可以固定浅色或深色，只影响弹出面板。菜单栏徽标跟着系统菜单栏的深浅，应用改不了。本页截图都是 1.3.1 的离屏渲染，数字是合成的，用来看清界面，不是某台电脑的用量。</p>
         </div>
       </div>
+    </section>
+
+    <section class="section wrap" id="segments" aria-labelledby="segments-title">
+      <div class="section-head">
+        <h2 id="segments-title">点哪段，看哪段</h2>
+        <p>左键落在 CPU 上，打开清理释放，列表按 CPU 排序。落在内存上，还是这一页，改按内存排序。落在网络上，打开系统功能：磁盘、速率、流量统计和应用列表。</p>
+      </div>
+      <div class="split shot-end">
+        <div class="stack">
+          <div class="segmented" role="radiogroup" aria-label="菜单栏分段" data-group="segment" aria-controls="segment-stage">
+            <button type="button" role="radio" data-shot="cpu" aria-checked="false" tabindex="-1">CPU</button>
+            <button type="button" role="radio" data-shot="memory" aria-checked="false" tabindex="-1">内存</button>
+            <button type="button" role="radio" data-shot="network" aria-checked="true" tabindex="0">网络</button>
+          </div>
+          <p class="visually-hidden" id="segment-status" aria-live="polite"></p>
+          <div data-shot-group="segment" data-shot="cpu" hidden>
+            <p>清理释放页把 CPU 和内存并排。两条曲线叠在同一条 0–100% 刻度上，刻度不按峰值拉满。程序列表按 CPU 排序。鼠标悬停在行尾，可以关闭那个应用。</p>
+            <p class="note gap-top-sm">这里只有浅色离屏图。深色面板是同一套结构。</p>
+          </div>
+          <div data-shot-group="segment" data-shot="memory" hidden>
+            <p>还是清理释放。排序改成按内存。进程 CPU 按单核计，和活动监视器一样：一颗核跑满是 100%，所以榜首程序的百分比可以高于顶部的系统占用。</p>
+            <p class="note gap-top-sm">内存用物理占用。几个进程的数字加起来可以超过物理内存，因为共享页会各算一份。</p>
+          </div>
+          <div data-shot-group="segment" data-shot="network">
+            <p>系统功能页左侧是磁盘占用和可用空间，右侧是本机速率，上行在上、下行在下。下面的流量统计和应用列表用的是同一档。</p>
+            <p class="legend gap-top-sm">
+              <span><i class="swatch up" aria-hidden="true"></i>上行</span>
+              <span><i class="swatch down" aria-hidden="true"></i>下行</span>
+              <span><i class="swatch cpu" aria-hidden="true"></i>CPU</span>
+              <span><i class="swatch mem" aria-hidden="true"></i>内存</span>
+            </p>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <caption class="visually-hidden">菜单栏和面板的操作</caption>
+              <thead>
+                <tr><th scope="col">操作</th><th scope="col">结果</th></tr>
+              </thead>
+              <tbody>
+                <tr><td>左键点 CPU</td><td>清理释放，列表按 CPU</td></tr>
+                <tr><td>左键点内存</td><td>清理释放，列表按内存</td></tr>
+                <tr><td>左键点网络</td><td>系统功能</td></tr>
+                <tr><td>面板开着时再点菜单栏</td><td>收起，不换页</td></tr>
+                <tr><td>点面板外，或按 Esc</td><td>收起</td></tr>
+                <tr><td>右键菜单栏</td><td>三段开关、暂停、网络图标、退出</td></tr>
+                <tr><td>面板顶部</td><td>在清理释放和系统功能之间切换</td></tr>
+                <tr><td>底部暂停 / 重置</td><td>暂停采样，或清空本次累计与曲线。历史保留</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div id="segment-stage">
+          <figure class="panel-card" data-shot-group="segment" data-shot="cpu" hidden>
+            <figcaption class="caption">清理释放 · 按 CPU · 浅色</figcaption>
+            <div class="panel-frame">
+              <img src="panel-cpu.png" width="720" height="1120" alt="浅色清理释放页，程序列表按 CPU 排序。上方是 CPU 和内存两张卡，中间两条曲线共用 0 到 100% 刻度。数字为合成数据。" loading="lazy">
+            </div>
+          </figure>
+          <figure class="panel-card" data-shot-group="segment" data-shot="memory" hidden>
+            <figcaption class="caption">清理释放 · 按内存 · 浅色</figcaption>
+            <div class="panel-frame">
+              <img src="panel-memory.png" width="720" height="1120" alt="浅色清理释放页，程序列表按内存占用排序。数字为合成数据。" loading="lazy">
+            </div>
+          </figure>
+          <figure class="panel-card" data-shot-group="segment" data-shot="network">
+            <figcaption class="caption">系统功能 · 随本页外观</figcaption>
+            <div class="panel-frame">
+              <img class="mode-light" src="panel-light.png" width="720" height="1120" alt="浅色系统功能页，实时流量。磁盘占用在左，本机速率在右，下方是曲线和应用列表。数字为合成数据。">
+              <img class="mode-dark" src="panel-dark.png" width="720" height="1120" alt="深色系统功能页，实时流量。布局与浅色相同。数字为合成数据。">
+            </div>
+          </figure>
+        </div>
+      </div>
+    </section>
+
+    <section class="section wrap" id="ranges" aria-labelledby="ranges-title">
+      <div class="section-head">
+        <h2 id="ranges-title">图表和排行一起换档</h2>
+        <p>流量统计有四档。实时看的是速率，日、周、月看的是这一段时间里每个应用的累计。换档时，曲线和下面的列表一起换，不会一个还停在实时、另一个已经变成一周。</p>
+      </div>
+      <p class="legend">
+        <span><i class="swatch down" aria-hidden="true"></i>下行，蓝</span>
+        <span><i class="swatch up" aria-hidden="true"></i>上行，琥珀</span>
+        <span>纵轴自动定标</span>
+      </p>
+      <div class="stack">
+        <div class="segmented" role="radiogroup" aria-label="流量统计档位" data-group="range" aria-controls="range-stage">
+          <button type="button" role="radio" data-shot="live" aria-checked="true" tabindex="0">实时</button>
+          <button type="button" role="radio" data-shot="day" aria-checked="false" tabindex="-1">日</button>
+          <button type="button" role="radio" data-shot="week" aria-checked="false" tabindex="-1">周</button>
+          <button type="button" role="radio" data-shot="month" aria-checked="false" tabindex="-1">月</button>
+        </div>
+        <p class="visually-hidden" id="range-status" aria-live="polite"></p>
+        <div id="range-stage">
+          <div class="pair" data-shot-group="range" data-shot="live">
+            <figure class="panel-card">
+              <figcaption class="caption">浅色 · 实时 · 60 秒</figcaption>
+              <div class="panel-frame">
+                <img src="panel-light.png" width="720" height="1120" alt="浅色，流量统计为实时。曲线大约覆盖 60 秒，应用列表是当前速率。合成数据。">
+              </div>
+            </figure>
+            <figure class="panel-card">
+              <figcaption class="caption">深色 · 实时 · 60 秒</figcaption>
+              <div class="panel-frame">
+                <img src="panel-dark.png" width="720" height="1120" alt="深色，流量统计为实时。曲线和应用列表与浅色同一档。合成数据。">
+              </div>
+            </figure>
+          </div>
+          <div class="pair" data-shot-group="range" data-shot="day" hidden>
+            <figure class="panel-card">
+              <figcaption class="caption">浅色 · 日 · 过去 24 小时</figcaption>
+              <div class="panel-frame">
+                <img src="panel-day.png" width="720" height="1120" alt="浅色，流量统计为日。曲线是过去 24 小时的 5 分钟平均，应用列表标题也是过去 24 小时的累计。合成数据。" loading="lazy">
+              </div>
+            </figure>
+            <figure class="panel-card">
+              <figcaption class="caption">深色 · 日 · 过去 24 小时</figcaption>
+              <div class="panel-frame">
+                <img src="panel-day-dark.png" width="720" height="1120" alt="深色，流量统计为日。曲线和列表都落在过去 24 小时。合成数据。" loading="lazy">
+              </div>
+            </figure>
+          </div>
+          <div class="pair" data-shot-group="range" data-shot="week" hidden>
+            <figure class="panel-card">
+              <figcaption class="caption">浅色 · 周 · 过去 7 天</figcaption>
+              <div class="panel-frame">
+                <img src="panel-week.png" width="720" height="1120" alt="浅色，流量统计为周。曲线是过去 7 天的 30 分钟平均，应用列表是这 7 天的累计。合成数据。" loading="lazy">
+              </div>
+            </figure>
+            <figure class="panel-card">
+              <figcaption class="caption">深色 · 周 · 过去 7 天</figcaption>
+              <div class="panel-frame">
+                <img src="panel-week-dark.png" width="720" height="1120" alt="深色，流量统计为周。曲线和列表都落在过去 7 天。合成数据。" loading="lazy">
+              </div>
+            </figure>
+          </div>
+          <div class="pair" data-shot-group="range" data-shot="month" hidden>
+            <figure class="panel-card">
+              <figcaption class="caption">浅色 · 月 · 过去 30 天</figcaption>
+              <div class="panel-frame">
+                <img src="panel-month.png" width="720" height="1120" alt="浅色，流量统计为月。曲线是过去 30 天的 2 小时平均，应用列表是这 30 天的累计。合成数据。" loading="lazy">
+              </div>
+            </figure>
+            <figure class="panel-card">
+              <figcaption class="caption">深色 · 月 · 过去 30 天</figcaption>
+              <div class="panel-frame">
+                <img src="panel-month-dark.png" width="720" height="1120" alt="深色，流量统计为月。曲线和列表都落在过去 30 天。合成数据。" loading="lazy">
+              </div>
+            </figure>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <caption class="visually-hidden">四档流量统计分别看什么</caption>
+            <thead>
+              <tr>
+                <th scope="col">档</th>
+                <th scope="col">范围</th>
+                <th scope="col">曲线</th>
+                <th scope="col">点数</th>
+                <th scope="col">应用列表</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td>实时</td><td>最近 60 秒</td><td>每秒速率</td><td>60</td><td>当前速率</td></tr>
+              <tr><td>日</td><td>过去 24 小时</td><td>5 分钟平均</td><td>288</td><td>这一段的累计</td></tr>
+              <tr><td>周</td><td>过去 7 天</td><td>30 分钟平均</td><td>336</td><td>这一段的累计</td></tr>
+              <tr><td>月</td><td>过去 30 天</td><td>2 小时平均</td><td>360</td><td>这一段的累计</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="note">历史存在本机，装得越久，月视图越完整。1.3.0 起按新的时间桶重新累计，刚装上时日、周、月几乎是平线，用满一天后才成形。这不是故障。</p>
+      </div>
+    </section>
+
+    <section class="section wrap" id="limits" aria-labelledby="limits-title">
+      <div class="section-head">
+        <h2 id="limits-title">读数时要知道的口径</h2>
+        <p>没有 root，没有内核扩展，没有系统扩展，也不需要辅助功能、屏幕录制或完全磁盘访问。第三方依赖是零。数据不上传。</p>
+      </div>
+      <dl class="spec">
+        <div>
+          <dt>只统计 TCP / UDP</dt>
+          <dd>ICMP 和部分 RAW socket 不计入，所以和活动监视器不会逐字相同。</dd>
+        </div>
+        <div>
+          <dt>本机回环不算</dt>
+          <dd>loopback 被排除，<code>127.0.0.1</code> 上的通信不出现在列表里。</dd>
+        </div>
+        <div>
+          <dt>VPN 会让各行之和大于总量</dt>
+          <dd>走 TUN 时，隧道里的应用和 VPN 客户端各记一份，互为副本。总量只取物理网卡，本身不翻倍。这类行的名称后有盾牌。设置里可以改成「只统计物理链路」，这时各应用之和与总量一致。只跑 IPv6 的隧道不会显示 VPN 标记，总量仍然按物理网卡计算。</dd>
+        </div>
+        <div>
+          <dt>没有温度和风扇</dt>
+          <dd>无特权进程读不到 Apple SMC。面板不放拿不到的数，这一格是磁盘占用和本机速率。</dd>
+        </div>
+        <div>
+          <dt>CPU、内存不留历史</dt>
+          <dd>负载曲线只在面板打开期间保留，退出就没了。流量历史写在本机 SQLite：<code>~/Library/Application Support/NetScope/traffic.db</code>。</dd>
+        </div>
+        <div>
+          <dt>列表不是完整进程表</dt>
+          <dd>没有流量的进程不出现在网络列表里。系统守护进程如果没有应用包，图标是齿轮。程序列表有行数上限，面板里滚动查看。</dd>
+        </div>
+        <div>
+          <dt>依赖系统自带的 nettop</dt>
+          <dd><code>/usr/bin/nettop</code> 随 macOS 提供，不随 NetScope 安装或删除。</dd>
+        </div>
+      </dl>
+      <p class="note gap-top">采样怎么取到这些数，写在页面最后的<a href="#sampling">短注</a>里。</p>
+    </section>
+
+    <section class="section wrap" id="settings" aria-labelledby="settings-title">
+      <div class="split shot-end">
+        <div class="stack">
+            <div class="section-head flush">
+            <h2 id="settings-title">面板里能改的</h2>
+            <p>右键是快捷开关。完整选项在面板底部的设置里。</p>
+          </div>
+          <ul class="stack-sm plain-list">
+            <li>三段各自显示或隐藏；网络图标用速率，或 40 点趋势。</li>
+            <li>外观：跟随系统、浅色、深色。</li>
+            <li>刷新间隔 1、2、3、5 秒；列表显示条数可调。</li>
+            <li>列表可以改成只统计物理链路。</li>
+            <li>流量告警。阈值 1 / 5 / 10 / 20 MB/s。某个应用连续 3 秒超过阈值才通知，同一个应用 10 分钟内只提醒一次。掉到阈值以下就重新计。</li>
+            <li>开机自动启动。应用要放在「应用程序」里，注册才会成功。</li>
+          </ul>
+        </div>
+        <figure class="panel-card">
+          <figcaption class="caption">设置 · 浅色</figcaption>
+          <div class="panel-frame">
+            <img src="panel-settings.png" width="720" height="1120" alt="浅色设置页。包含菜单栏三段开关、网络图标、外观、刷新间隔、显示条数、只统计物理链路、流量告警和开机自动启动。" loading="lazy">
+          </div>
+        </figure>
+      </div>
+    </section>
+
+    <section class="section wrap" id="download" aria-labelledby="download-title">
+      <div class="section-head">
+        <h2 id="download-title">下载</h2>
+        <p>1.3.1 的可执行文件 1,743,488 字节，大约 1.9 MB。应用包大约 3.9 MB，多出来的是系统自带的 SQLite 和通知框架。只提供 Apple 芯片版本。</p>
+      </div>
+      <div class="card">
+        <ol class="steps">
+          <li>
+            <div>
+              <p>下载 <a href="https://github.com/zdx8/NetScope-macOS/releases/latest/download/NetScope-macOS-arm64.dmg">NetScope-macOS-arm64.dmg</a>。这是永久链接，始终指向最新版。也可以从 <a href="https://github.com/zdx8/NetScope-macOS/releases/latest">Releases</a> 进入。</p>
+            </div>
+          </li>
+          <li>
+            <div>
+              <p>同一发布里有 <a href="https://github.com/zdx8/NetScope-macOS/releases/latest/download/NetScope-macOS-arm64.dmg.sha256"><code>NetScope-macOS-arm64.dmg.sha256</code></a>。两个文件放在同一目录后核对：</p>
+              <pre><code>shasum -a 256 -c NetScope-macOS-arm64.dmg.sha256</code></pre>
+            </div>
+          </li>
+          <li>
+            <div>
+              <p>打开磁盘映像，把 <code>NetScope.app</code> 拖进「应用程序」。开机自动启动要求应用位于可注册位置，放在下载目录或项目目录里，开关会失败并自己关回去。</p>
+            </div>
+          </li>
+          <li>
+            <div>
+              <p>包是临时签名（<code>codesign --sign -</code>），没有公证。本机第一次打开，Gatekeeper 可能会拦住。在「应用程序」里对 NetScope 右键，选择「打开」；或在终端执行：</p>
+              <pre><code>xattr -dr com.apple.quarantine /Applications/NetScope.app</code></pre>
+            </div>
+          </li>
+          <li>
+            <div>
+              <p>要发给别人使用，需要你自己签名并公证。这个发布包不能代替那一步。</p>
+            </div>
+          </li>
+        </ol>
+        <p class="note gap-top">源码、构建脚本和许可证都在 <a href="https://github.com/zdx8/NetScope-macOS">github.com/zdx8/NetScope-macOS</a>。许可证是 MIT。清空历史要先退出应用，再删除 <code>~/Library/Application Support/NetScope</code>。</p>
+      </div>
+    </section>
+
+    <section class="sampling wrap" id="sampling" aria-labelledby="sampling-title">
+      <div class="section-head">
+        <h2 id="sampling-title">采样从哪来</h2>
+        <p>这一节只交代数据怎么取到。日常看流量，用上面的面板就够了。</p>
+      </div>
+      <div class="stack">
+        <p>计数来自系统自带的 <code>nettop</code>。默认每秒一次，设置里可以改成 2、3 或 5 秒。为了让文本及时按行出来，子进程跑在 pty 上。退出时先发 SIGTERM；这个进程在 pty 下不响应，所以再补一次 SIGKILL，避免它继续留在后台采样。</p>
+        <p>总量和列表是两条通道。列表覆盖外部接口，能看到走隧道的应用；总量只用无线和有线网卡上真实经过的字节。因此开着 TUN 型 VPN，或开着虚拟机网卡时，各行相加可能大于总量。</p>
+        <p>流量按时间桶写在本机 SQLite 里。采样在内存里归并，大约每 30 秒落盘一次。更粗的日、周、月曲线由这些桶覆盖重算得来，查询不再扫每一秒。偏好在 <code>~/Library/Preferences/com.zdx8.netscope.plist</code>。应用本身不联网。纯逻辑自检有 214 项断言。</p>
+      </div>
+    </section>
+  </main>
+
+  <footer class="foot">
+    <div class="wrap foot-row">
+      <p class="fine">NetScope 1.3.1 · macOS 菜单栏 · 数据留在本机</p>
+      <p class="fine"><a href="https://github.com/zdx8/NetScope-macOS">GitHub</a> · MIT</p>
     </div>
-  </section>
+  </footer>
 
-  <!-- ============ 已知限制 ============ -->
-  <section class="section muted">
-    <div class="wrap">
-      <p class="eyebrow">已知限制</p>
-      <h2>先说清楚，再用得放心。</h2>
-      <ul class="limits">
-        <li><strong>只统计 TCP / UDP socket。</strong>ICMP、部分 RAW socket 不计入，与「活动监视器」的数字不完全一致。</li>
-        <li><strong>loopback 被排除。</strong><code>127.0.0.1</code> 上的通信不显示。</li>
-        <li><strong>走 TUN 型 VPN 时，各应用之和会大于总量。</strong>VPN 客户端显示的是物理链路上的加密字节，与隧道内应用的明文互为副本——总量本身准确，但不能把各行相加。</li>
-        <li><strong>只跑 IPv6 的隧道识别不到。</strong>判据是 <code>utun*</code> 上有 IPv4 地址（macOS 会给每个 utun 都发 <code>fe80::</code>，用 IPv4 才能干净区分）。</li>
-        <li><strong>面板打开时菜单栏状态项会有系统高亮底。</strong>这是 NSPopover 锚定绘制的高亮层，按钮状态管不了。</li>
-        <li><strong>CPU 温度与风扇转速显示不了。</strong>读 AppleSMC 需要特权助手，实测无特权时所有键都返回「不可读」——面板不放拿不到的数值，顶部留给磁盘占用与本机速率。</li>
-      </ul>
-    </div>
-  </section>
+  <noscript>
+    <style>
+      [data-shot-group][hidden] { display: block !important; }
+    </style>
+  </noscript>
+  <script>
+    (function () {
+      var root = document.documentElement;
+      var KEY = "netscope-appearance";
 
-</main>
+      function systemDark() {
+        return window.matchMedia("(prefers-color-scheme: dark)").matches;
+      }
 
-<footer class="footer">
-  <div class="wrap footer-inner">
-    <div>
-      <p class="fname">NetScope <span class="tag">v1.3.1</span></p>
-      <p class="fmeta">SwiftUI · AppKit · SQLite · 零第三方依赖 · MIT 许可证</p>
-    </div>
-    <div class="flinks">
-      <a href="https://github.com/zdx8/NetScope-macOS">源码</a>
-      <a href="https://github.com/zdx8/NetScope-macOS/blob/main/LICENSE">MIT</a>
-      <a href="https://github.com/zdx8/NetScope-macOS/blob/main/HANDOVER.md">交接文档</a>
-      <a href="https://github.com/zdx8/NetScope-macOS/releases/latest">下载</a>
-    </div>
-  </div>
-</footer>
+      function mode() {
+        return root.getAttribute("data-theme") || "system";
+      }
 
-<script>
-// 四档查看器：与 App 内的芯片切换同构。无依赖，纯静态。
-(function () {
-  var TIERS = {
-    live: {
-      img: "panel-dark.png",
-      alt: "NetScope 实时档：60 秒速率曲线，应用列表按当前速率排序",
-      window: "60 秒",
-      avg: "每秒刷新",
-      keep: "内存环形缓冲，不落盘",
-      caption: "实时：每秒刷新的当前速率曲线，60 秒滑动窗口；应用列表按此刻速率排序，谁在跑流量一眼可见。"
-    },
-    day: {
-      img: "panel-day-dark.png",
-      alt: "NetScope 日视图：过去 24 小时，5 分钟平均速率与当日累计排行",
-      window: "过去 24 小时",
-      avg: "5 分钟平均",
-      keep: "26 小时",
-      caption: "日：按 5 分钟平均绘出的 24 小时节奏；列表切到当日累计排行——今天谁吃得多，直接见分晓。"
-    },
-    week: {
-      img: "panel-week-dark.png",
-      alt: "NetScope 周视图：过去 7 天，30 分钟平均速率",
-      window: "过去 7 天",
-      avg: "30 分钟平均",
-      keep: "8.5 天",
-      caption: "周：30 分钟平均抹平毛刺，工作日与周末的节奏一目了然；列表是该时段累计排行。"
-    },
-    month: {
-      img: "panel-month-dark.png",
-      alt: "NetScope 月视图：过去 30 天，2 小时平均速率与长期排行",
-      window: "过去 30 天",
-      avg: "2 小时平均",
-      keep: "31.5 天",
-      caption: "月：2 小时平均看长期趋势，长期吃流量的应用直接排名；数据沉淀越久，这张图越有看头。"
-    }
-  };
+      function applyAppearance(next, persist) {
+        if (next === "system") root.removeAttribute("data-theme");
+        else root.setAttribute("data-theme", next);
+        var dark = next === "dark" || (next !== "light" && systemDark());
+        root.setAttribute("data-resolved", dark ? "dark" : "light");
+        document.querySelectorAll("[data-appearance]").forEach(function (btn) {
+          var on = btn.getAttribute("data-appearance") === next;
+          btn.setAttribute("aria-checked", on ? "true" : "false");
+          btn.tabIndex = on ? 0 : -1;
+        });
+        if (persist) {
+          try { localStorage.setItem(KEY, next); } catch (e) {}
+        }
+      }
 
-  var img = document.getElementById("tier-img");
-  var caption = document.getElementById("tier-caption");
-  var mWindow = document.getElementById("meta-window");
-  var mAvg = document.getElementById("meta-avg");
-  var mKeep = document.getElementById("meta-keep");
-  var buttons = document.querySelectorAll(".seg button");
+      applyAppearance(mode(), false);
 
-  buttons.forEach(function (btn) {
-    btn.addEventListener("click", function () {
-      var tier = TIERS[btn.dataset.tier];
-      if (!tier) return;
-      buttons.forEach(function (b) {
-        b.setAttribute("aria-pressed", b === btn ? "true" : "false");
+      var appearance = document.querySelector('[data-group="appearance"]');
+      appearance.addEventListener("click", function (event) {
+        var btn = event.target.closest("[data-appearance]");
+        if (!btn) return;
+        applyAppearance(btn.getAttribute("data-appearance"), true);
       });
-      img.src = tier.img;
-      img.alt = tier.alt;
-      caption.textContent = tier.caption;
-      mWindow.textContent = tier.window;
-      mAvg.textContent = tier.avg;
-      mKeep.textContent = tier.keep;
-    });
-  });
-})();
-</script>
 
+      window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", function () {
+        if (mode() === "system") applyAppearance("system", false);
+      });
+
+      var labels = {
+        cpu: "正在显示清理释放，按 CPU 排序",
+        memory: "正在显示清理释放，按内存排序",
+        network: "正在显示系统功能",
+        live: "正在显示实时，最近 60 秒",
+        day: "正在显示日，过去 24 小时",
+        week: "正在显示周，过去 7 天",
+        month: "正在显示月，过去 30 天"
+      };
+
+      function pick(groupName, value) {
+        document.querySelectorAll('[data-shot-group="' + groupName + '"]').forEach(function (el) {
+          el.hidden = el.getAttribute("data-shot") !== value;
+        });
+        var group = document.querySelector('[data-group="' + groupName + '"]');
+        group.querySelectorAll("[data-shot]").forEach(function (btn) {
+          var on = btn.getAttribute("data-shot") === value;
+          btn.setAttribute("aria-checked", on ? "true" : "false");
+          btn.tabIndex = on ? 0 : -1;
+        });
+        var status = document.getElementById(groupName + "-status");
+        if (status) status.textContent = labels[value] || "";
+      }
+
+      function bind(groupName) {
+        var group = document.querySelector('[data-group="' + groupName + '"]');
+        group.addEventListener("click", function (event) {
+          var btn = event.target.closest("[data-shot]");
+          if (!btn || !group.contains(btn)) return;
+          pick(groupName, btn.getAttribute("data-shot"));
+        });
+        group.addEventListener("keydown", function (event) {
+          if (event.key !== "ArrowRight" && event.key !== "ArrowLeft" && event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
+          var btns = Array.prototype.slice.call(group.querySelectorAll("[data-shot]"));
+          var index = btns.indexOf(document.activeElement);
+          if (index < 0) return;
+          event.preventDefault();
+          var dir = event.key === "ArrowRight" || event.key === "ArrowDown" ? 1 : -1;
+          var next = btns[(index + dir + btns.length) % btns.length];
+          next.focus();
+          pick(groupName, next.getAttribute("data-shot"));
+        });
+      }
+
+      bind("segment");
+      bind("range");
+      appearance.addEventListener("keydown", function (event) {
+        if (event.key !== "ArrowRight" && event.key !== "ArrowLeft" && event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
+        var btns = Array.prototype.slice.call(appearance.querySelectorAll("[data-appearance]"));
+        var index = btns.indexOf(document.activeElement);
+        if (index < 0) return;
+        event.preventDefault();
+        var dir = event.key === "ArrowRight" || event.key === "ArrowDown" ? 1 : -1;
+        var next = btns[(index + dir + btns.length) % btns.length];
+        next.focus();
+        applyAppearance(next.getAttribute("data-appearance"), true);
+      });
+    })();
+  </script>
 </body>
 </html>
