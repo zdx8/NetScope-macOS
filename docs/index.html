@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>NetScope — macOS 菜单栏网络流量监控</title>
-<meta name="description" content="macOS 原生菜单栏应用，按应用统计上下行流量。60 秒曲线、按天历史、流量告警，无 root、无内核扩展、零第三方依赖。">
+<meta name="description" content="macOS 原生菜单栏应用，按应用统计上下行流量。菜单栏三段直出 CPU / 内存 / 网络，流量统计分实时、日、周、月四档，超阈值告警，无 root、无内核扩展、零第三方依赖。">
 <link rel="stylesheet" href="style.css">
 <link rel="icon" href="images/icon.png">
 <meta property="og:title" content="NetScope — macOS 菜单栏网络流量监控">
@@ -36,12 +36,13 @@
         <p class="eyebrow">macOS 菜单栏 · 应用级流量监控</p>
         <h1>点开就知道，<br>刚才到底是谁在跑流量。</h1>
         <p class="lede">
-          按应用统计上下行字节，每秒刷新。60 秒双向曲线、按天历史、超阈值告警。
+          按应用统计上下行字节，每秒刷新。菜单栏三段数值直出 CPU / 内存 / 网络，
+          流量统计分实时、日、周、月四档，图表与程序排行同步切换，超阈值告警。
           <strong>无 root、无内核扩展、零第三方依赖</strong>，可执行文件 1 MB。
         </p>
         <div class="cta">
-          <a class="btn primary" href="https://github.com/zdx8/NetScope-macOS/releases/latest">
-            下载 v1.1.3
+          <a class="btn primary" href="https://github.com/zdx8/NetScope-macOS/releases/latest/download/NetScope-macOS-arm64.dmg">
+            下载 v1.3.1
           </a>
           <a class="btn" href="#install">从源码构建</a>
         </div>
@@ -49,8 +50,8 @@
       </div>
 
       <figure class="hero-shot">
-        <img src="menubar-badge.png" alt="菜单栏中的 NetScope：网络图标与上行/下行两行数值">
-        <figcaption>菜单栏默认形态：上行在上、下行在下</figcaption>
+        <img src="menubar-badge.png" alt="菜单栏中的 NetScope：CPU、内存、网络三段数值，竖线分隔">
+        <figcaption>菜单栏形态：CPU ｜ 内存 ｜ 网络三段合为一项，点哪段弹哪段详情</figcaption>
       </figure>
     </div>
   </section>
@@ -60,17 +61,41 @@
       <h2>界面</h2>
       <div class="shots">
         <figure class="shot wide">
-          <img src="panel.png" alt="NetScope 实时面板">
-          <figcaption>实时：总速率、本次累计、60 秒双向曲线、按占用排序的应用列表。VPN 客户端带盾牌标注。</figcaption>
+          <img src="panel.png" alt="NetScope 系统功能面板（实时档）">
+          <figcaption>系统功能：磁盘占用（含可用空间）与本机速率，实时流量曲线，应用列表按当前速率排序。VPN 客户端带盾牌标注。</figcaption>
         </figure>
         <div class="shot-pair">
           <figure class="shot">
-            <img src="panel-history.png" alt="NetScope 历史视图">
-            <figcaption>历史：今日 / 近 7 天合计、7 天柱状图、今日 Top 应用</figcaption>
+            <img src="panel-day.png" alt="NetScope 日视图：5 分钟平均速率">
+            <figcaption>流量统计 · 日：过去 24 小时，5 分钟平均值，下行蓝 / 上行橙双线，应用列表切到当日累计排行</figcaption>
           </figure>
           <figure class="shot">
-            <img src="panel-settings.png" alt="NetScope 设置项">
-            <figcaption>设置：刷新间隔、显示条数、列表口径、告警、开机启动</figcaption>
+            <img src="panel-week.png" alt="NetScope 周视图：30 分钟平均速率">
+            <figcaption>流量统计 · 周：过去 7 天，30 分钟平均值，工作日与周末的节奏一目了然</figcaption>
+          </figure>
+        </div>
+        <div class="shot-pair">
+          <figure class="shot">
+            <img src="panel-month.png" alt="NetScope 月视图：2 小时平均速率">
+            <figcaption>流量统计 · 月：过去 30 天，2 小时平均值，哪个应用在长期吃流量直接排名</figcaption>
+          </figure>
+          <figure class="shot">
+            <img src="panel-dark.png" alt="NetScope 深色模式">
+            <figcaption>深色模式：同一面板跟随系统外观，两套主题都按对比度校准</figcaption>
+          </figure>
+        </div>
+        <figure class="shot wide">
+          <img src="panel-settings.png" alt="NetScope 设置项">
+          <figcaption>设置：刷新间隔、显示条数、列表口径、告警、开机启动</figcaption>
+        </figure>
+        <div class="shot-pair">
+          <figure class="shot">
+            <img src="panel-cpu.png" alt="NetScope 清理释放面板（按 CPU）">
+            <figcaption>清理释放：CPU 与内存双卡并排，程序列表按 CPU 排序，悬停行可一键关闭</figcaption>
+          </figure>
+          <figure class="shot">
+            <img src="panel-memory.png" alt="NetScope 清理释放面板（按内存）">
+            <figcaption>清理释放：切到「按内存」排序，谁在吃内存一目了然</figcaption>
           </figure>
         </div>
       </div>
@@ -95,8 +120,15 @@
         </article>
 
         <article class="card">
-          <h3>历史落在 SQLite</h3>
-          <p>按天聚合，写入节流 30 秒。能翻今日用量、近 7 天趋势、今天消耗最多的应用 —— 关掉应用也不会归零。</p>
+          <h3>悬停即关</h3>
+          <p>鼠标划过「清理释放」的程序行，行尾出现红色「关闭」，点一下就结束这个应用。
+             面板里还有按 CPU / 按内存两档排序，占用大户排最前。</p>
+        </article>
+
+        <article class="card">
+          <h3>实时、日、周、月四档流量统计</h3>
+          <p>增量先落进 5 分钟桶，后台自动聚合成 30 分钟与 2 小时桶（覆盖写，不会越加越重）。
+             图表与下面的应用排行一起换档：实时看速率，日 / 周 / 月看平均速率与区间累计。</p>
         </article>
 
         <article class="card">
@@ -145,7 +177,7 @@
         <div class="install-col">
           <h3>下载</h3>
           <ol>
-            <li>从 <a href="https://github.com/zdx8/NetScope-macOS/releases/latest">Releases</a> 下载 <code>NetScope-1.1.3-arm64.dmg</code></li>
+            <li>从 <a href="https://github.com/zdx8/NetScope-macOS/releases/latest/download/NetScope-macOS-arm64.dmg">这里</a> 下载 <code>NetScope-macOS-arm64.dmg</code>（永久链接，始终指向最新版）</li>
             <li>打开后把 NetScope 拖进「应用程序」</li>
             <li>首次启动若被 Gatekeeper 拦下：右键 →「打开」，或执行下面的命令</li>
           </ol>
@@ -177,6 +209,7 @@ bash Scripts/build_app.sh</code></pre>
         <li><strong>走 TUN 型 VPN 时，各应用之和会大于总量。</strong>VPN 客户端显示的是物理链路上的加密字节，与隧道内应用的明文互为副本 —— 总量本身准确，但不能把各行相加。</li>
         <li><strong>只跑 IPv6 的隧道识别不到。</strong>判据是 <code>utun*</code> 上有 IPv4 地址（macOS 会给每个 utun 都发 <code>fe80::</code>，用 IPv4 才能干净区分）。</li>
         <li><strong>面板打开时菜单栏状态项会有系统高亮底。</strong>这是 NSPopover 锚定绘制的高亮层，按钮状态管不了。</li>
+        <li><strong>CPU 温度与风扇转速显示不了。</strong>读 AppleSMC 需要特权助手，实测无特权时所有键都返回「不可读」；面板不放拿不到的数值，该格用于磁盘占用与网络状态。</li>
       </ul>
     </div>
   </section>
@@ -186,7 +219,7 @@ bash Scripts/build_app.sh</code></pre>
 <footer class="footer">
   <div class="wrap footer-inner">
     <div>
-      <p class="fname">NetScope <span class="tag">v1.1.3</span></p>
+      <p class="fname">NetScope <span class="tag">v1.3.1</span></p>
       <p class="fmeta">SwiftUI · AppKit · SQLite · 零第三方依赖</p>
     </div>
     <div class="flinks">

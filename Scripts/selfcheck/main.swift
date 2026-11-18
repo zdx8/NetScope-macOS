@@ -1,4 +1,5 @@
 import Foundation
+import AppKit
 
 // NetScope 无界面自检：验证 CSV 解析、累计值差分、应用聚合、格式化，
 // 并用真实 pty 采样跑一轮端到端（不依赖 GUI）。
@@ -214,7 +215,7 @@ do {
 
 // MARK: - 历史持久化
 
-section("10. 历史持久化（临时数据库）")
+section("10. 分层时间桶持久化（临时数据库）")
 do {
     let path = NSTemporaryDirectory() + "netscope-selfcheck-\(UUID().uuidString).db"
     defer { try? FileManager.default.removeItem(atPath: path) }
@@ -225,44 +226,78 @@ do {
     }
     expect(true, "打开测试数据库")
 
-    let today = HistoryStore.dayString(for: Date())
+    // bucketStart 对齐：任意时刻向下取整到桶宽的整数倍（纯数学，与当前时间无关）
+    let fixed = Date(timeIntervalSince1970: 1_764_000_137)   // 不落在任何桶边界上
+    expect(HistoryStore.bucketStart(for: fixed, granularity: .fiveMinutes) == 1_764_000_000,
+           "5 分钟桶取整", detail: "\(HistoryStore.bucketStart(for: fixed, granularity: .fiveMinutes))")
+    expect(HistoryStore.bucketStart(for: fixed, granularity: .thirtyMinutes) == 1_764_000_000,
+           "30 分钟桶取整")
+    expect(HistoryStore.bucketStart(for: fixed, granularity: .twoHours) == 1_764_000_000,
+           "2 小时桶取整")
 
+    // 以下用「相对现在」的时间做读写与清理断言（prune 按 now - retention 删，
+    // 固定 epoch 的测试数据会被立刻清掉）。
+    // 选一个 5 分钟桶起点，使它与 +300 都落在同一个 30 分钟与 2 小时父桶内，
+    // 避免测试在整点附近跑的时候父桶被拆成两个。
+    var bucket1 = HistoryStore.bucketStart(for: Date(), granularity: .fiveMinutes) - 300
+    while bucket1.truncatingRemainder(dividingBy: 1_800) > 1_200
+            || bucket1.truncatingRemainder(dividingBy: 7_200) > 1_200 { bucket1 -= 300 }
+
+    // 同桶内两次增量要累加；同应用两条记录也累加
     store.record([
         .init(key: "/Applications/Safari.app", name: "Safari", bytesIn: 1_000, bytesOut: 500),
         .init(key: "/Applications/WeChat.app", name: "微信", bytesIn: 200, bytesOut: 100)
-    ])
-    // 同一应用的第二批要累加，而不是覆盖
+    ], at: Date(timeIntervalSince1970: bucket1 + 60))
     store.record([
         .init(key: "/Applications/Safari.app", name: "Safari", bytesIn: 500, bytesOut: 250)
-    ])
+    ], at: Date(timeIntervalSince1970: bucket1 + 120))
     store.flush(force: true)
 
-    let dayTotal = store.total(days: 1)
-    // total 是全部应用的合计：Safari 1500 + 微信 200
-expect(dayTotal.bytesIn == 1_700, "同一天的增量累加", detail: "\(dayTotal.bytesIn)")
-    expect(dayTotal.bytesOut == 850, "出站增量累加", detail: "\(dayTotal.bytesOut)")
+    let series = store.series(.fiveMinutes, points: 6, now: Date(timeIntervalSince1970: bucket1 + 60))
+    expect(series.count == 6, "6 点序列长度", detail: "\(series.count)")
+    expect(series.last?.bytesIn == 1_700, "入站增量累加", detail: "\(series.last?.bytesIn ?? 0)")
+    expect(series.last?.bytesOut == 850, "出站增量累加")
+    expect(series.last?.time == bucket1, "末点对齐到桶起始")
+    expect(series.first?.total == 0, "无记录桶补 0")
 
-    let top = store.topApps(limit: 5)
+    // 跨桶：下一个 5 分钟桶独立累计
+    let next = bucket1 + 300
+    store.record([.init(key: "/Applications/Safari.app", name: "Safari", bytesIn: 9_000, bytesOut: 0)],
+                 at: Date(timeIntervalSince1970: next + 60))
+    store.flush(force: true)
+    let series2 = store.series(.fiveMinutes, points: 3, now: Date(timeIntervalSince1970: next + 60))
+    expect(series2.count == 3, "3 点序列")
+    expect(series2.last?.bytesIn == 9_000, "新桶独立累计", detail: "\(series2.last?.bytesIn ?? 0)")
+    expect(series2[series2.count - 2].bytesIn == 1_700, "上一个桶保留原值")
+
+    // 聚合层：30 分钟桶 = 同跨度内 5 分钟桶之和；flush 两次都重算过，覆盖写不能翻倍
+    let weekSeries = store.series(.thirtyMinutes, points: 2, now: Date(timeIntervalSince1970: next + 60))
+    expect(weekSeries.last?.bytesIn == 10_700, "30 分钟桶聚合（覆盖写不翻倍）",
+           detail: "\(weekSeries.last?.bytesIn ?? 0)")
+    expect(weekSeries.last?.bytesOut == 850, "聚合层出站同步")
+    expect(weekSeries.first?.total == 0, "聚合层无记录桶补 0")
+    let monthSeries = store.series(.twoHours, points: 1, now: Date(timeIntervalSince1970: next + 60))
+    expect(monthSeries.last?.bytesIn == 10_700, "2 小时桶聚合")
+
+    // topApps：范围内按应用合计、总量降序；since 过滤起点
+    let top = store.topApps(.fiveMinutes, since: 0, now: Date(timeIntervalSince1970: next + 60))
     expect(top.count == 2, "按应用聚合为 2 条", detail: "\(top.count)")
     expect(top.first?.name == "Safari", "按总量降序")
-    expect(top.first?.total == 2_250, "Safari 合计 2250", detail: "\(top.first?.total ?? 0)")
+    expect(top.first?.total == 11_250, "Safari 合计 11250", detail: "\(top.first?.total ?? 0)")
+    let sinceNext = store.topApps(.fiveMinutes, since: next, now: Date(timeIntervalSince1970: next + 60))
+    expect(sinceNext.count == 1 && sinceNext.first?.bytesIn == 9_000,
+           "since 只统计起点之后的桶", detail: "\(sinceNext.count)")
 
-    let series = store.dailyTotals(days: 7)
-    expect(series.count == 7, "7 天序列长度", detail: "\(series.count)")
-    expect(series.last?.day == today, "最后一个元素是今天")
-    expect(series.last?.total == 2_550, "今天合计 1700+850")
-    expect(series.first?.total == 0, "无记录的日期补 0")
-
-    // 跨天
-    let yesterday = Calendar.current.date(byAdding: .day, value: -1, to: Date()) ?? Date()
-    store.record([.init(key: "/Applications/Safari.app", name: "Safari", bytesIn: 9_000, bytesOut: 0)],
-                 at: yesterday)
+    // prune：超过保留期的桶删除，其余保留
+    let ancient = Date(timeIntervalSince1970: bucket1 - 28 * 3_600)   // 28 小时前，超出 26h 保留期
+    store.record([.init(key: "/Applications/OldApp.app", name: "老应用", bytesIn: 7_777, bytesOut: 0)],
+                 at: ancient)
     store.flush(force: true)
-    expect(store.total(days: 7).bytesIn == 10_700, "7 天合计含昨天", detail: "\(store.total(days: 7).bytesIn)")
-    expect(store.total(days: 1).bytesIn == 1_700, "今日合计不含昨天")
-
-    expect(HistoryStore.recentDays(3).count == 3, "recentDays 长度")
-    expect(HistoryStore.recentDays(0).isEmpty, "recentDays(0) 为空")
+    store.prune()
+    let afterPrune = store.topApps(.fiveMinutes, since: 0, now: Date(timeIntervalSince1970: next + 60))
+    expect(!afterPrune.contains { $0.name == "老应用" }, "超保留期桶被清理",
+           detail: "\(afterPrune.map(\.name))")
+    expect(afterPrune.contains { $0.name == "Safari" }, "保留期内数据不受影响")
     store.close()
 }
 
@@ -307,7 +342,7 @@ do {
 
 section("12. 菜单栏趋势图")
 do {
-    var emptyHistory = RateHistory(capacity: 60)
+    let emptyHistory = RateHistory(capacity: 60)
     let empty = MenuBarSparkline.image(history: emptyHistory)
     expect(empty.size == NSSize(width: 34, height: 18), "尺寸固定 34×18", detail: "\(empty.size)")
     expect(empty.isTemplate, "是 template image（自适应深浅色）")
@@ -431,6 +466,347 @@ if comparable >= 1 {
     }
 }
 
+
+// MARK: - 系统负载
+
+section("15. 系统负载采样")
+do {
+    // 32 位节拍回绕：10 核机器约 49.7 天回绕一次，不处理会算出负增长
+    expect(SystemLoadProbe.delta(10, 20) == 10, "节拍差分：正常递增")
+    expect(SystemLoadProbe.delta(UInt64(UInt32.max), 0) == 1, "节拍差分：回绕边界")
+    expect(SystemLoadProbe.delta(UInt64(UInt32.max) - 4, 6) == 11, "节拍差分：跨零回绕")
+
+    let zero = SystemLoadProbe.CPUTicks(user: 0, system: 0, nice: 0, idle: 0)
+    let busy = SystemLoadProbe.CPUTicks(user: 30, system: 10, nice: 0, idle: 60)
+    let percent = SystemLoadProbe.cpuPercent(previous: zero, current: busy)
+    expect(percent.map { abs($0 - 40) < 0.0001 } ?? false,
+           "CPU 占用率 = 忙时增量 / 总增量",
+           detail: "得到 \(String(describing: percent))，期望 40")
+    expect(SystemLoadProbe.cpuPercent(previous: zero, current: zero) == nil,
+           "零间隔样本返回 nil（不做除零）")
+
+    let inconsistent = SystemLoadProbe.CPUTicks(user: 200, system: 0, nice: 0, idle: 0)
+    expect(SystemLoadProbe.cpuPercent(previous: zero, current: inconsistent) == 100,
+           "占用率上限钳制为 100")
+
+    if let first = SystemLoadProbe.cpuTicks() {
+        expect(first.total > 0, "真实节拍可读", detail: "total=\(first.total)")
+        expect(first.busy <= first.total, "忙时节拍不超过总量")
+
+        Thread.sleep(forTimeInterval: 0.3)
+        if let second = SystemLoadProbe.cpuTicks() {
+            expect(second.total > first.total, "节拍随时间单调增长",
+                   detail: "\(first.total) → \(second.total)")
+            let real = SystemLoadProbe.cpuPercent(previous: first, current: second)
+            expect(real.map { $0 >= 0 && $0 <= 100 } ?? false,
+                   "真实 CPU 占用率落在 0–100", detail: String(describing: real))
+        } else {
+            expect(false, "第二次节拍采样可用")
+        }
+    } else {
+        expect(false, "首次节拍采样可用")
+    }
+
+    if let memory = SystemLoadProbe.memory() {
+        expect(memory.total == ProcessInfo.processInfo.physicalMemory,
+               "物理内存总量与 ProcessInfo 一致",
+               detail: "\(memory.total) vs \(ProcessInfo.processInfo.physicalMemory)")
+        expect(memory.used == memory.app + memory.wired + memory.compressed,
+               "已用 = 应用 + 联动 + 压缩")
+        expect(memory.used <= memory.total, "已用不超过物理内存",
+               detail: "\(memory.used) / \(memory.total)")
+        expect(memory.cached <= memory.total, "缓存估算不超过物理内存")
+        expect((0.0...100.0).contains(memory.percent), "内存占用率落在 0–100",
+               detail: String(format: "%.1f%%", memory.percent))
+        expect(memory.app <= memory.used && memory.wired <= memory.used
+               && memory.compressed <= memory.used,
+               "各分项不超过已用总量")
+    } else {
+        expect(false, "内存采样可用")
+    }
+
+    // 历史环形窗口：超出容量后丢最旧的，且百分比按绝对量纲钳制
+    var history = LoadHistory(capacity: 60)
+    for index in 1...70 { history.append(Double(index)) }
+    expect(history.points.count == 60, "历史窗口按容量截断", detail: "\(history.points.count)")
+    expect(history.points.first == 11, "截断后保留最新 60 个点",
+           detail: "first=\(String(describing: history.points.first))")
+    expect(history.points.last == 70, "最新点在最末")
+    expect(history.peak == 70, "峰值计算")
+    expect(history.average.map { abs($0 - 40.5) < 0.0001 } ?? false,
+           "均值计算（11…70 的平均为 40.5）")
+
+    var clamped = LoadHistory(capacity: 10)
+    clamped.append(-5)
+    clamped.append(120)
+    expect(clamped.points == [0, 100], "百分比钳制到 0–100")
+    clamped.clear()
+    expect(clamped.points.isEmpty && clamped.average == nil, "清空后无残留、均值为空")
+
+    // 用户态 / 内核态拆解：详情面板要展示，必须与总量口径一致
+    let split = SystemLoadProbe.cpuBreakdown(previous: zero, current: busy)
+    expect(split.map { abs($0.user - 30) < 0.0001 } ?? false,
+           "拆解：用户态 30%", detail: String(describing: split?.user))
+    expect(split.map { abs($0.system - 10) < 0.0001 } ?? false,
+           "拆解：内核态 10%", detail: String(describing: split?.system))
+    expect(split.map { abs($0.user + $0.system + $0.idle - 100) < 0.0001 } ?? false,
+           "拆解三项合计 100%")
+    expect(split.map { abs($0.user + $0.system - 40) < 0.0001 } ?? false,
+           "拆解的用户+内核与总占用率一致")
+    expect(SystemLoadProbe.cpuBreakdown(previous: zero, current: zero) == nil,
+           "拆解：零间隔返回 nil")
+
+    let withNice = SystemLoadProbe.CPUTicks(user: 10, system: 10, nice: 10, idle: 70)
+    expect(SystemLoadProbe.cpuBreakdown(previous: zero, current: withNice)
+            .map { abs($0.user - 20) < 0.0001 } ?? false,
+           "拆解：nice 计入用户态（10+10）")
+}
+
+// MARK: - 合并式菜单栏徽标
+
+section("16. 合并式菜单栏徽标")
+do {
+    // 百分比文本：四舍五入、钳制、无数据占位，全部走同一个实现
+    expect(PercentFormat.text(23.4) == "23%", "百分比：23.4 → 23%")
+    expect(PercentFormat.text(23.6) == "24%", "百分比：23.6 → 24%")
+    expect(PercentFormat.text(-5) == "0%", "百分比：负值钳到 0%")
+    expect(PercentFormat.text(120) == "100%", "百分比：超过 100 钳制")
+    expect(PercentFormat.text(nil) == "—", "百分比：无数据用破折号")
+    expect(PercentFormat.number(7.8) == "8", "数字：不带百分号")
+
+    // 进程占用不钳制：多核并行时 800% 是合法值
+    expect(PercentFormat.process(142.4) == "142%", "进程占用：可超过 100%")
+    expect(PercentFormat.process(0.42) == "0.4%", "进程占用：小于 10 保留一位小数")
+    expect(PercentFormat.process(-3) == "0.0%", "进程占用：负值归零")
+
+    let all = MenuBarBadge.State(cpu: 42, memory: 79,
+                                 up: 1_240_000, down: 8_420_000)
+    let rendered = MenuBarBadge.render(all)
+
+    expect(rendered.image.size.height == 22, "徽标高度固定 22",
+           detail: "\(rendered.image.size.height)")
+    expect(rendered.image.isTemplate, "是 template image（跟随菜单栏深浅色）")
+    expect(rendered.image.tiffRepresentation != nil, "能光栅化")
+    expect(rendered.image.accessibilityDescription?.contains("CPU 42%") == true,
+           "无障碍描述含 CPU 数值",
+           detail: rendered.image.accessibilityDescription ?? "nil")
+
+    // 三段顺序固定：CPU → 内存 → 网络
+    expect(rendered.segments.map(\.slot) == [.cpu, .memory, .network],
+           "三段顺序为 CPU / 内存 / 网络",
+           detail: rendered.segments.map { "\($0.slot)" }.joined(separator: ","))
+
+    // 段与段之间留出「竖线 + 两侧空隙」，且不重叠
+    var ordered = true
+    for (previous, next) in zip(rendered.segments, rendered.segments.dropFirst()) {
+        let gap = next.frame.minX - previous.frame.maxX
+        if gap < 8 || gap > 24 { ordered = false }
+    }
+    expect(ordered, "相邻段之间留出分隔线空隙（8–24pt）")
+
+    let widths = [9.0, 42.0, 100.0].map {
+        MenuBarBadge.imageWidth(MenuBarBadge.State(cpu: $0, memory: 79,
+                                                   up: 1_000, down: 9_000))
+    }
+    expect(widths.max()! - widths.min()! <= 1.0, "整块宽度不随 CPU 数值变化",
+           detail: widths.map { String(format: "%.1f", $0) }.joined(separator: "/"))
+
+    let netWidths = [1_000.0, 999_000.0, 12_000_000.0].map {
+        MenuBarBadge.imageWidth(MenuBarBadge.State(cpu: 42, memory: 79, up: $0, down: $0))
+    }
+    expect(netWidths.max()! - netWidths.min()! <= 1.0, "整块宽度不随速率变化",
+           detail: netWidths.map { String(format: "%.1f", $0) }.joined(separator: "/"))
+
+    // 关掉某段后，段数减少且整块变窄（需求：三段可分别开关）
+    let onlyNetwork = MenuBarBadge.State(cpu: 42, memory: 79, up: 1_000, down: 9_000,
+                                         visible: [.network])
+    let single = MenuBarBadge.render(onlyNetwork)
+    expect(single.segments.map(\.slot) == [.network], "只保留网络段")
+    expect(single.image.size.width < rendered.image.size.width, "隐藏两段后整体变窄",
+           detail: "\(single.image.size.width) < \(rendered.image.size.width)")
+
+    // 点击命中：段内 → 该段；落在分隔带上 → 右边那段；超出右边界 → 最后一段
+    let segments = rendered.segments
+    expect(MenuBarBadge.slot(atX: segments[0].frame.midX, segments: segments) == .cpu,
+           "点击第一段命中 CPU")
+    expect(MenuBarBadge.slot(atX: segments[1].frame.midX, segments: segments) == .memory,
+           "点击第二段命中内存")
+    expect(MenuBarBadge.slot(atX: segments[2].frame.midX, segments: segments) == .network,
+           "点击第三段命中网络")
+    expect(MenuBarBadge.slot(atX: segments[1].frame.minX - 6, segments: segments) == .memory,
+           "点击竖线附近归右边那段，不留死区")
+    expect(MenuBarBadge.slot(atX: 10_000, segments: segments) == .network,
+           "超出右边界归最后一段")
+    expect(MenuBarBadge.slot(atX: 0, segments: []) == nil, "空段表返回 nil")
+}
+
+// MARK: - 进程级采样
+
+section("17. 进程级采样")
+do {
+    // 差分：1 秒内用掉 1 秒 CPU = 一个核的 100%
+    let before: [Int32: UInt64] = [10: 0, 11: 1_000_000_000]
+    let current = [
+        ProcessLoadSample(pid: 10, name: "a", cpuTime: 1_000_000_000, footprint: 100),
+        ProcessLoadSample(pid: 11, name: "b", cpuTime: 2_500_000_000, footprint: 200),
+        ProcessLoadSample(pid: 12, name: "c", cpuTime: 9_999_999_999, footprint: 300)
+    ]
+    let percent = ProcessLoadProbe.cpuPercents(previous: before, current: current, elapsed: 1)
+    expect(percent[10].map { abs($0 - 100) < 0.001 } ?? false, "1 秒用满 1 核 = 100%")
+    expect(percent[11].map { abs($0 - 150) < 0.001 } ?? false,
+           "1.5 秒 CPU / 1 秒墙钟 = 150%（多核可超 100%）")
+    expect(percent[12] == nil, "没有上次快照的进程不出数")
+
+    let twoSeconds = ProcessLoadProbe.cpuPercents(previous: [10: 0], current: [
+        ProcessLoadSample(pid: 10, name: "a", cpuTime: 1_000_000_000, footprint: 1)
+    ], elapsed: 2)
+    expect(twoSeconds[10].map { abs($0 - 50) < 0.001 } ?? false, "间隔翻倍则占用率减半")
+
+    let backwards = ProcessLoadProbe.cpuPercents(previous: [10: 5_000_000_000], current: [
+        ProcessLoadSample(pid: 10, name: "a", cpuTime: 1_000_000_000, footprint: 1)
+    ], elapsed: 1)
+    expect(backwards[10] == nil, "累计时间倒退（pid 复用）不出负数")
+    expect(ProcessLoadProbe.cpuPercents(previous: [10: 0], current: current, elapsed: 0).isEmpty,
+           "零间隔返回空")
+
+    // 聚合：同一应用的多个进程合并成一行
+    let samples = [
+        ProcessLoadSample(pid: 20, name: "Helper", cpuTime: 0, footprint: 1_000),
+        ProcessLoadSample(pid: 21, name: "Helper", cpuTime: 0, footprint: 2_000),
+        ProcessLoadSample(pid: 30, name: "Other", cpuTime: 0, footprint: 500)
+    ]
+    let merged = ProcessLoadProbe.merge(samples,
+                                        percent: [20: 30, 21: 12, 30: 5]) { pid, _ in
+        pid == 30 ? "other" : "chrome"
+    }.sorted { $0.key < $1.key }
+    expect(merged.count == 2, "同一个 key 的进程合并为一行", detail: "\(merged.count)")
+    expect(merged.first?.processCount == 2, "合并行记录进程数")
+    expect(merged.first?.cpu == 42, "合并行 CPU 相加", detail: "\(merged.first?.cpu ?? -1)")
+    expect(merged.first?.memory == 3_000, "合并行内存相加")
+    expect(merged.first?.pids.sorted() == [20, 21], "合并行保留参与聚合的 pid",
+           detail: "\(merged.first?.pids ?? [])")
+    expect(merged.last?.pids == [30], "单进程行的 pid 列表只有自己")
+    expect(ProcessLoadProbe.terminate(pids: []) == 0, "空 pid 列表不发信号")
+    expect(ProcessLoadProbe.terminate(pids: [-1, 0, 1]) == 0, "拒绝 pid ≤ 1（内核与 launchd）")
+
+    // 关闭链路端到端：自己起一个 sleep，SIGTERM 之后应当真的退出
+    let victim = Process()
+    victim.executableURL = URL(fileURLWithPath: "/bin/sleep")
+    victim.arguments = ["60"]
+    try? victim.run()
+    let victimPID = victim.processIdentifier
+    usleep(200_000)
+    expect(ProcessLoadProbe.terminate(pids: [victimPID]) == 1, "SIGTERM 成功发给子进程")
+    var exited = false
+    for _ in 0..<20 {
+        usleep(100_000)
+        if kill(victimPID, 0) != 0 { exited = true; break }
+    }
+    expect(exited, "收到 SIGTERM 的子进程已退出")
+
+    // 真实快照：至少要能看到自己这个进程
+    let snapshot = ProcessLoadProbe.snapshot()
+    let selfPID = ProcessInfo.processInfo.processIdentifier
+    expect(!snapshot.isEmpty, "全量快照非空", detail: "\(snapshot.count) 个进程")
+    expect(snapshot.contains { $0.pid == selfPID }, "快照包含自检进程自身")
+    expect(snapshot.allSatisfy { $0.footprint >= 0 && $0.cpuTime >= 0 }, "字段非负")
+    expect(snapshot.filter { $0.footprint > 0 }.count > 10, "多数进程能读到物理内存",
+           detail: "\(snapshot.filter { $0.footprint > 0 }.count) 个")
+
+    // 单位换算的端到端验证：忙等 0.25 秒，自己的占用应接近 100%（单核）。
+    // rusage 返回的是 mach 节拍而不是纳秒，漏掉 timebase 换算会得到 ~2.4%。
+    func sampleSelf() -> ProcessLoadSample? {
+        ProcessLoadProbe.snapshot().first { $0.pid == selfPID }
+    }
+    if let before = sampleSelf() {
+        let start = Date()
+        while Date().timeIntervalSince(start) < 0.25 {
+            _ = sqrt(Double.random(in: 0...1))
+        }
+        let elapsed = Date().timeIntervalSince(start)
+        if let after = sampleSelf() {
+            let percent = ProcessLoadProbe.cpuPercents(previous: [selfPID: before.cpuTime],
+                                                       current: [after],
+                                                       elapsed: elapsed)[selfPID] ?? -1
+            expect(percent > 40 && percent < 160,
+                   "忙等 0.25 秒自身占用接近单核 100%（时间单位换算正确）",
+                   detail: String(format: "%.0f%%", percent))
+        }
+    }
+}
+
+// MARK: - 系统统计
+
+section("18. 系统统计与排序文案")
+do {
+    // 磁盘：根卷容量必须自洽（可用 ≤ 总量，占用率在 0…1）
+    if let stats = SystemStatsProbe.systemStats() {
+        expect(stats.diskTotal > 0, "读到根卷容量", detail: ByteFormat.size(stats.diskTotal))
+        expect(stats.diskFree <= stats.diskTotal, "可用空间不超过总量")
+        expect(stats.diskUsedFraction >= 0 && stats.diskUsedFraction <= 1,
+               "占用率在 0…1", detail: String(format: "%.3f", stats.diskUsedFraction))
+        expect(!stats.thermal.isEmpty, "散热状态有文案", detail: stats.thermal)
+        expect(stats.uptime > 0, "开机时长大于 0")
+    } else {
+        expect(false, "读到根卷容量")
+    }
+
+    // 开机时长文案：面板里只有一格，必须短且不出现 "0 天"
+    expect(SystemStatsProbe.uptimeText(0) == "0 分", "不足 1 小时只显示分钟")
+    expect(SystemStatsProbe.uptimeText(90) == "1 分", "90 秒 → 1 分")
+    expect(SystemStatsProbe.uptimeText(3_600) == "1 小时 0 分", "整点小时带分钟位")
+    expect(SystemStatsProbe.uptimeText(90_000) == "1 天 1 小时", "超过一天显示天 + 小时")
+
+    // 散热状态映射（四个档位都是系统公开 API，不会返回空串）
+    expect(SystemStatsProbe.thermalLabel(.nominal) == "正常", "nominal → 正常")
+    expect(SystemStatsProbe.thermalLabel(.fair) == "偏热", "fair → 偏热")
+    expect(SystemStatsProbe.thermalLabel(.serious) == "过热", "serious → 过热")
+    expect(SystemStatsProbe.thermalLabel(.critical) == "危险", "critical → 危险")
+
+    // 排序按钮文案：中文不加空格，拉丁缩写两侧留空格
+    expect(ProcessMetric.cpu.sortTitle == "按 CPU", "CPU 排序文案两侧留空格",
+           detail: ProcessMetric.cpu.sortTitle)
+    expect(ProcessMetric.memory.sortTitle == "按内存", "内存排序文案不加空格",
+           detail: ProcessMetric.memory.sortTitle)
+}
+
+// MARK: - 流量档位元数据
+
+section("19. 流量统计档位元数据")
+do {
+    // 三层桶宽与点数：日 5 分钟×288 = 24h；周 30 分钟×336 = 7d；月 2 小时×360 = 30d
+    expect(HistoryStore.Granularity.allCases.count == 3, "三个持久化粒度")
+    expect(HistoryStore.Granularity.fiveMinutes.seconds == 300
+           && HistoryStore.Granularity.thirtyMinutes.seconds == 1_800
+           && HistoryStore.Granularity.twoHours.seconds == 7_200, "桶宽 300/1800/7200")
+    expect(HistoryStore.Granularity.fiveMinutes.displayPoints == 288
+           && HistoryStore.Granularity.thirtyMinutes.displayPoints == 336
+           && HistoryStore.Granularity.twoHours.displayPoints == 360, "点数 288/336/360")
+    expect(300.0 * 288 == 86_400, "日视图覆盖 24 小时")
+    expect(1_800.0 * 336 == 604_800, "周视图覆盖 7 天")
+    expect(7_200.0 * 360 == 2_592_000, "月视图覆盖 30 天")
+    // 桶宽彼此整除，聚合才不需要对不齐
+    expect(1_800 % 300 == 0 && 7_200 % 300 == 0 && 7_200 % 1_800 == 0, "三层桶宽整除")
+    // 保留期递增且比展示范围更宽（聚合重算要能查到源桶）
+    expect(HistoryStore.Granularity.fiveMinutes.retention >= 24 * 3_600
+           && HistoryStore.Granularity.thirtyMinutes.retention >= 7 * 86_400
+           && HistoryStore.Granularity.twoHours.retention >= 30 * 86_400, "保留期覆盖展示范围")
+    expect(HistoryStore.Granularity.fiveMinutes.retention < HistoryStore.Granularity.thirtyMinutes.retention
+           && HistoryStore.Granularity.thirtyMinutes.retention < HistoryStore.Granularity.twoHours.retention,
+           "保留期随粒度递增")
+
+    // UI 档位 → 持久化粒度映射
+    expect(TrafficRange.live.granularity == nil
+           && TrafficRange.day.granularity == .fiveMinutes
+           && TrafficRange.week.granularity == .thirtyMinutes
+           && TrafficRange.month.granularity == .twoHours,
+           "档位到粒度的映射")
+    expect([TrafficRange.live, .day, .week, .month].map(\.title) == ["实时", "日", "周", "月"],
+           "档位标题顺序")
+    expect(TrafficRange.day.rangeLabel == "过去 24 小时"
+           && TrafficRange.week.rangeLabel == "过去 7 天"
+           && TrafficRange.month.rangeLabel == "过去 30 天", "范围文案")
+}
 
 print("\n————————————————————————")
 if failures.isEmpty {

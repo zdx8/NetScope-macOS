@@ -13,8 +13,14 @@ swiftc -O -lsqlite3 -o "$OUT" \
   Sources/NetScope/Core/NettopPTY.swift \
   Sources/NetScope/Core/TunnelDetector.swift \
   Sources/NetScope/Core/HistoryStore.swift \
+  Sources/NetScope/Core/TrafficRange.swift \
   Sources/NetScope/Core/AlertCenter.swift \
+  Sources/NetScope/Core/SystemLoadProbe.swift \
+  Sources/NetScope/Core/ProcessLoadProbe.swift \
+  Sources/NetScope/Core/SystemStatsProbe.swift \
+  Sources/NetScope/Core/ProcessMetric.swift \
   Sources/NetScope/Support/Formatting.swift \
+  Sources/NetScope/Support/MenuBarBadge.swift \
   Sources/NetScope/Support/MenuBarSparkline.swift \
   Scripts/selfcheck/main.swift
 

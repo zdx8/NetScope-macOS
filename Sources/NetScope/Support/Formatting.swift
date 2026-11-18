@@ -49,3 +49,28 @@ public enum ByteFormat {
         return String(format: "%.\(digits)f %@", scaled, units[index])
     }
 }
+
+/// 百分比文本的唯一来源：菜单栏徽标、详情面板、提示条都从这里取，
+/// 免得「菜单栏显示 100%、面板显示 99%」这种四舍五入不一致。
+public enum PercentFormat {
+    /// `42%` / `100%`；无数据时给占位破折号，避免徽标塌成空白。
+    public static func text(_ value: Double?) -> String {
+        guard let value else { return "—" }
+        return "\(Int(min(max(value, 0), 100).rounded()))%"
+    }
+
+    /// 只要数字，不要百分号（用于自拼文案，例如「用户 15%」里的 `15`）。
+    public static func number(_ value: Double?) -> String {
+        guard let value else { return "—" }
+        return "\(Int(min(max(value, 0), 100).rounded()))"
+    }
+
+    /// 进程占用。与系统占用不同，这里**不钳制到 100**：
+    /// 按活动监视器口径，一个进程跑满 8 个核就是 800%。
+    /// 低于 10% 时保留一位小数，否则后台进程会全显示成 0%。
+    public static func process(_ value: Double) -> String {
+        let clamped = max(value, 0)
+        if clamped < 10 { return String(format: "%.1f%%", clamped) }
+        return "\(Int(clamped.rounded()))%"
+    }
+}

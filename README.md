@@ -2,12 +2,12 @@
 
 > 官网 <https://zdx8.github.io/NetScope-macOS/> · 下载 [Releases](https://github.com/zdx8/NetScope-macOS/releases/latest)
 
-macOS 菜单栏常驻的**应用级网络流量监控**。SwiftUI 原生，约 670 KB 可执行文件，无 root 权限、
+macOS 菜单栏常驻的**应用级网络流量监控**。SwiftUI 原生，约 1.9 MB 可执行文件，无 root 权限、
 无内核扩展、无系统扩展、零第三方依赖。
 
 ![panel](docs/panel.png)
 
-菜单栏默认形态：
+菜单栏只占一项，内部三段用竖线分隔（顺序从左到右：CPU · 内存 · 网络），点哪段弹哪段：
 
 ![menubar](docs/menubar-badge.png)
 
@@ -15,21 +15,38 @@ macOS 菜单栏常驻的**应用级网络流量监控**。SwiftUI 原生，约 6
 
 - **每秒采样**：按进程统计上下行字节，自动归并同一应用的多个进程
   （`Google Chrome Helper (Renderer)` 会算进 `Google Chrome`）
-- **菜单栏双行数值**：网络图标 + 两行实时速率（上行在上、下行在下），右键可切成 40 点趋势图
-- **弹出面板**：总下行 / 上行速率、本次会话累计、近 60 秒双向曲线、按占用排序的应用列表
-- **历史统计**：按天写入 SQLite，可看今日 / 近 7 天用量、7 天柱状图、今日 Top 应用
+- **菜单栏一项三段**：`42% CPU │ 79% MEM │ 🌐 ↑1.2M ↓8.4M`，竖线分隔、整块约 129pt；
+  点某一段就弹那一段的详情（按下当刻记录光标位置并用徽标矩形校验，重放的幽灵点击直接丢弃）。
+  三段可单独关闭，网络段可切成 40 点趋势图
+- **清理释放页**：CPU 与内存双卡并排，两条曲线叠在同一 0–100% 刻度上；
+  程序列表带「按 CPU / 按内存」两档排序，鼠标悬停行尾出现「关闭」，点一下就结束该应用
+- **系统功能页**：磁盘占用（含可用空间）与本机速率（上行在上、下行在下），
+  样式对齐清理释放页的指标卡；下方按流量排序的应用列表
+- **流量统计四档**：实时（60 秒速率曲线）/ 日（过去 24 小时，5 分钟平均值，288 点）/
+  周（过去 7 天，30 分钟平均值，336 点）/ 月（过去 30 天，2 小时平均值，360 点），
+  下行蓝、上行橙双线自动定标；图表与下方应用列表**同步换档**——历史档显示该时间段每应用的累计流量排行
+- **面板主题**：设置里可切「跟随系统 / 浅色 / 深色」，只影响弹出面板；
+  菜单栏徽标跟随系统菜单栏的深浅
+- **分层时间桶持久化**：增量先落 5 分钟桶（保留 26h），落盘时自动聚合出 30 分钟桶（8.5 天）
+  与 2 小时桶（31.5 天），覆盖写不翻倍；数据按天累积，装得越久月视图越有看头
+- **Astryx 设计系统**：颜色、字号、4pt 间距、圆角、阴影全部按 meta/astryx 的 `neutral` 主题令牌实现，
+  面板是固定尺寸 360×560，切换清理释放/系统功能/设置时窗口不跳动
 - **流量告警**：某个应用连续 3 秒超过阈值时发系统通知（同应用 10 分钟内只提醒一次）
 - **列表口径**（可选）：只统计物理链路，此时各应用之和与总量一致
-- **右键菜单**：暂停监控、显示速率开关、退出
-- **面板内设置**：刷新间隔、显示条数、列表口径、告警、开机启动
+- **右键菜单**：三段显示开关、暂停监控、网络图标形态、退出
+- **面板内设置**：三段开关、网络图标形态、刷新间隔、显示条数、列表口径、告警、开机启动
 
 ## 使用
 
 | 操作 | 效果 |
 |---|---|
-| 左键点菜单栏图标 | 打开 / 关闭面板 |
-| 右键点菜单栏图标 | 暂停监控、切换趋势图、退出 |
-| 面板右上角图标 | 切换「实时速率」/「历史用量」 |
+| 左键点 `42% CPU` 那一段 | 打开清理释放页，程序列表按 CPU 排序 |
+| 左键点 `79% MEM` 那一段 | 打开清理释放页，程序列表按内存占用排序 |
+| 左键点 `🌐 ↑↓` 那一段 | 打开系统功能页（磁盘/速率统计 + 流量统计 + 应用列表） |
+| 面板开着时再点菜单栏项 | 收起面板（不区分段；点面板外或按 Esc 也会收起） |
+| 右键点菜单栏项（任一段） | 三段显示开关、暂停监控、网络图标形态、退出 |
+| 面板顶部选项栏 | 切换「清理释放」/「系统功能」 |
+| 流量统计卡的 实时/日/周/月 | 切换图表与下方应用排行的数据源（实时=速率，日/周/月=区间累计） |
 | 面板底部 `⏸` / `↺` | 暂停采样 / 清空本次累计与曲线（不清历史） |
 | 面板底部 `≡` | 展开设置 |
 | 退出 | 会 flush 历史并把 nettop 子进程一并回收 |
@@ -39,17 +56,21 @@ macOS 菜单栏常驻的**应用级网络流量监控**。SwiftUI 原生，约 6
 
 ## 历史与统计
 
-数据落在 `~/Library/Application Support/NetScope/traffic.db`（SQLite，系统自带库）。
-表结构只有一张：
+数据落在 `~/Library/Application Support/NetScope/traffic.db`（SQLite，系统自带库），
+一张分层表 `traffic_samples`，三档粒度彼此整除：
 
-```sql
-daily_app_traffic(day TEXT, app_key TEXT, app_name TEXT, bytes_in INTEGER, bytes_out INTEGER)
-```
+| 粒度 | 桶宽 | 保留期 | 用在哪 |
+|---|---|---|---|
+| 5 分钟 | 300s | 26 小时 | 日图表（288 点）、历史档应用排行 |
+| 30 分钟 | 1800s | 8.5 天 | 周图表（336 点） |
+| 2 小时 | 7200s | 31.5 天 | 月图表（360 点） |
 
-- **写入节流 30 秒**：采样是每秒一次，但落盘每 30 秒一次。逐秒 UPSERT 会把磁盘写入放大 30 倍，
-  而这份数据的粒度本来就只是「天」—— 崩溃最多丢 30 秒。
-- **按天聚合**：跨天自动分桶，保留 120 天。
-- **口径与列表一致**（external）：历史里的「Top 应用」和实时面板看到的是同一套数字。
+- **写入节流 30 秒**：采样每秒一次，落盘每 30 秒一次；增量在内存里先归并进当前 5 分钟桶
+- **聚合是覆盖写**：每次落盘顺带把受影响的父桶 DELETE 后从 5 分钟源桶重新 SUM——
+  父桶会被反复重算，累加 UPSERT 会把旧值越加越大
+- **查询很轻**：周视图只扫 336 个 30 分钟桶、月视图只扫 360 个 2 小时桶，不碰原始层
+- 自检覆盖：桶对齐、同桶累加、跨桶独立、覆盖写不翻倍、series 补 0、topApps 排序与起点过滤、
+  超保留期清理（共 214 项断言的一部分）
 
 清空历史：
 
@@ -74,7 +95,7 @@ bash Scripts/build_app.sh            # 编译 → 生成图标 → 组装 .app �
 bash Scripts/build_app.sh --no-open  # 同上但不启动
 bash Scripts/build_app.sh --dmg      # 额外产出 DMG
 
-bash Scripts/selfcheck/run.sh        # 纯逻辑自检（59 项断言，含真实 pty 采样）
+bash Scripts/selfcheck/run.sh        # 纯逻辑自检（214 项断言，含真实 pty 与 libproc 采样）
 ```
 
 无界面自检与界面快照（不依赖屏幕录制 / 辅助功能权限）：
@@ -82,7 +103,10 @@ bash Scripts/selfcheck/run.sh        # 纯逻辑自检（59 项断言，含真�
 ```bash
 BIN=dist/NetScope.app/Contents/MacOS/NetScope
 "$BIN" --headless                              # 采样 8 次后打印统计，退出码 0 = 通过
-"$BIN" --headless --demo --render-panel /tmp/p.png   # 用合成数据渲染完整面板（浅色+深色两张）
+"$BIN" --headless --demo --render-panel /tmp/p.png   # 用合成数据渲染系统功能页（浅色+深色两张）
+"$BIN" --headless --demo --render-panel /tmp/p.png --panel-mode settings   # 设置页
+"$BIN" --headless --demo --render-load /tmp/p.png    # 清理释放页（按 CPU / 按内存各两张）
+"$BIN" --headless --demo --render-badges /tmp/b.png  # 菜单栏徽标对照图
 "$BIN" --show-panel                            # 启动后自动弹面板，并打印窗口号供 screencapture -l
 ```
 
@@ -145,6 +169,8 @@ IPv4 地址——macOS 会给每个 utun 都发 `fe80::`（utun0–4 这类内�
 - 用 `-t external` 排除了 loopback，`127.0.0.1` 上的通信不显示。
 - 走 TUN 型 VPN 时，列表里 VPN 应用与隧道内应用互为副本，各应用之和会大于总量；
   总量本身不受影响（取自物理网卡）。
+- CPU 温度与风扇转速读不了：AppleSMC 的键在无特权进程下全部返回「不可读」，
+  面板不放拿不到的数值，该格用于磁盘占用与网络状态。
 - 依赖 `/usr/bin/nettop`（系统自带，不随移除）。
 - 临时签名（`codesign --sign -`），仅本机可运行；拷给别人会被 Gatekeeper 拦下。
 
@@ -159,18 +185,29 @@ Sources/NetScope/
 │   ├── NettopPTY.swift           pty + posix_spawn，实时读取
 │   ├── TunnelDetector.swift      VPN 隧道/客户端识别
 │   ├── HistoryStore.swift        SQLite 按天持久化
+│   ├── TrafficRange.swift        流量统计四档定义（实时/日/周/月 → 粒度映射）
 │   ├── AlertCenter.swift         阈值告警（连续命中 + 冷却）
 │   ├── ProcessDirectory.swift    pid → 名称/图标/聚合键
+│   ├── SystemLoadProbe.swift     Mach 接口读系统 CPU / 内存
+│   ├── ProcessLoadProbe.swift    libproc 读每进程 CPU 时间与 phys_footprint
+│   ├── SystemStatsProbe.swift    磁盘容量 / 散热档位 / 开机时长（statfs，无特权）
+│   ├── ProcessMetric.swift       程序列表排序维度（按 CPU / 按内存）
 │   └── OrphanReaper.swift        清理异常退出遗留的 nettop
-├── App/                      # 生命周期、菜单栏、引擎、偏好
-├── Views/                    # 面板、迷你曲线、应用行、历史视图
-└── Support/                  # 格式化、配色、菜单栏趋势图绘制
+├── App/                      # 生命周期、菜单栏、引擎、偏好、页面路由
+├── Views/                    # 面板、双指标卡、程序列表、应用行、系统区块
+└── Support/                  # 格式化、Astryx 令牌与组件、菜单栏徽标绘制
 Scripts/
 ├── build_app.sh              组装 .app
 ├── make_icon.swift           自绘 iconset（不依赖外部图形工具）
 ├── cpumeter.swift            用 libproc 读 CPU/内存（沙箱里 top 不可用时）
+├── loadcheck/                CPU/内存读数受控负载对照（13 项断言，约 20 秒）
 ├── traffic-probe.sh          双通道并行对比，验证去重前提
-└── selfcheck/                104 项断言 + 真实 pty 端到端
+└── selfcheck/                214 项断言 + 真实 pty / libproc 端到端
 ```
 
 详见 [HANDOVER.md](HANDOVER.md)。
+
+## 许可证
+
+MIT，见 [LICENSE](LICENSE)。仅使用系统框架（SwiftUI / AppKit / libproc / Mach API / nettop），
+无第三方依赖；数据全部留在本机。

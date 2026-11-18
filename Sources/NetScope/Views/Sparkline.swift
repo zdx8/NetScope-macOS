@@ -51,9 +51,13 @@ struct Sparkline: View {
 
             context.stroke(downLine, with: .color(Theme.down),
                            style: StrokeStyle(lineWidth: 1.6, lineCap: .round, lineJoin: .round))
-            context.stroke(upLine, with: .color(Theme.up),
-                           style: StrokeStyle(lineWidth: 1.1, lineCap: .round, lineJoin: .round,
-                                              dash: [3.5, 2.5]))
+            // 完全没有上行流量时不画那条贴底的虚线：它会被误读成「0 基线」，
+            // 让人以为图里画了两条线
+            if points.contains(where: { $0.up > 0 }) {
+                context.stroke(upLine, with: .color(Theme.up),
+                               style: StrokeStyle(lineWidth: 1.1, lineCap: .round, lineJoin: .round,
+                                                  dash: [3.5, 2.5]))
+            }
         }
         .frame(height: height)
         .accessibilityLabel("近 \(history.capacity) 秒速率曲线")

@@ -5,7 +5,7 @@ set -euo pipefail
 
 APP_NAME="NetScope"
 BUNDLE_ID="com.zdx8.netscope"
-APP_VERSION="1.1.3"
+APP_VERSION="1.3.1"
 MIN_MACOS="14.0"
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -99,11 +99,23 @@ if [ "${SKIP_ICON_CACHE_REFRESH:-0}" != "1" ]; then
 fi
 
 if [ "$MAKE_DMG" = "1" ]; then
-  DMG="$DIST/${APP_NAME}-${APP_VERSION}-arm64.dmg"
-  echo "==> 打包 DMG"
-  rm -f "$DMG"
-  hdiutil create -volname "$APP_NAME" -srcfolder "$APP_DIR" -ov -format UDZO "$DMG" >/dev/null
+  # 发布规范（2026-11-09 起）：DMG 附件命名 <软件名>-<系统>-<架构>.dmg，
+  # **不带版本号**——版本写在 Info.plist / tag / Release 标题里，
+  # 固定名保住 releases/latest/download/<固定名> 永久链接。
+  DMG="$DIST/${APP_NAME}-macOS-arm64.dmg"
+  echo "==> 打包 DMG（staging：app + LICENSE + 使用说明 + /Applications 软链）"
+  STAGING="$DIST/.dmg-staging"
+  rm -rf "$STAGING" "$DMG"
+  mkdir -p "$STAGING"
+  cp -R "$APP_DIR" "$STAGING/"
+  cp "$(dirname "$0")/../LICENSE" "$STAGING/" 2>/dev/null || echo "    警告：仓库根目录没有 LICENSE" >&2
+  cp "$(dirname "$0")/../使用说明.txt" "$STAGING/" 2>/dev/null || true
+  ln -s /Applications "$STAGING/Applications"
+  hdiutil create -volname "$APP_NAME" -srcfolder "$STAGING" -fs HFS+ -format UDZO -ov "$DMG" >/dev/null
+  shasum -a 256 "$DMG" > "$DMG.sha256"
+  rm -rf "$STAGING"
   echo "    $DMG ($(du -sh "$DMG" | awk '{print $1}'))"
+  echo "    $DMG.sha256"
 fi
 
 echo ""

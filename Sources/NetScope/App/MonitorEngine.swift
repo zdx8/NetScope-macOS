@@ -63,11 +63,13 @@ final class MonitorEngine: ObservableObject {
     /// 总量是否来自物理网卡通道（false 表示已退化为全接口合计）
     @Published private(set) var isUsingPhysicalTotal = true
 
-    // 历史（按天持久化）
-    @Published private(set) var todayTotal: UInt64 = 0
-    @Published private(set) var weekTotal: UInt64 = 0
-    @Published private(set) var topAppsInHistory: [HistoryStore.AppEntry] = []
-    @Published private(set) var dailyTotals: [HistoryStore.DayTotal] = []
+    // 历史（分层时间桶持久化：5 分钟 / 30 分钟 / 2 小时）
+    /// 当前档位的速率曲线点（每桶累计字节，UI 换算成平均速率）
+    @Published private(set) var historySeries: [HistoryStore.SamplePoint] = []
+    /// 当前档位时间范围内按应用合计的排行
+    @Published private(set) var historyTopApps: [HistoryStore.AppEntry] = []
+    /// 当前档位范围的起始 epoch（给 UI 标注「过去 24 小时 / 7 天 / 30 天」）
+    @Published private(set) var historyRangeStart: TimeInterval = 0
     @Published private(set) var historyAvailable = false
     /// `--demo` 模式标志：历史视图用合成数据，`refreshHistory` 据此跳过真实库读取
     private var demoLoaded = false
@@ -78,6 +80,8 @@ final class MonitorEngine: ObservableObject {
     private let settings: Settings
     private let alertCenter = AlertCenter()
     private let historyStore: HistoryStore?
+    /// CPU / 内存采样。生命周期跟随引擎：暂停时一起停，避免「暂停后曲线还在动」。
+    let systemLoad = SystemLoadMonitor()
     private var cancellables: Set<AnyCancellable> = []
 
     private var watchdog: Timer?
@@ -109,6 +113,7 @@ final class MonitorEngine: ObservableObject {
         isPaused = false
         refreshTunnelState(force: true)
         launchChannels()
+        systemLoad.start(interval: settings.sampleInterval)
         startWatchdog()
     }
 
@@ -117,6 +122,7 @@ final class MonitorEngine: ObservableObject {
         watchdog = nil
         appChannel.stop()
         netChannel.stop()
+        systemLoad.stop()
         historyStore?.flush(force: true)
         status = .paused
     }
@@ -127,16 +133,21 @@ final class MonitorEngine: ObservableObject {
         historyStore?.close()
     }
 
-    /// 读取历史统计（切换到历史视图时调用）。先 flush 一次，让刚采集的数据也能看到。
-    /// demo 模式（`--demo`）注入的是合成历史数据，刷新会把它覆盖成真实库内容，跳过。
-    func refreshHistory() {
-        guard !demoLoaded else { return }
+    /// 读取历史统计（面板打开 / 档位切换时调用）。先 flush 一次，让刚采集的数据也能看到。
+    ///
+    /// 日视图查 5 分钟层（288 桶）、周视图查 30 分钟层（336 桶）、月视图查 2 小时层（360 桶），
+    /// 行数都在几千以内。demo 模式（`--demo`）注入的是合成历史数据，跳过真实库读取。
+    func refreshHistory(range: HistoryStore.Granularity) {
+        guard !demoLoaded else {
+            loadDemoHistory(range)
+            return
+        }
         guard let historyStore else { return }
         historyStore.flush(force: true)
-        todayTotal = historyStore.total(days: 1).total
-        weekTotal = historyStore.total(days: 7).total
-        topAppsInHistory = historyStore.topApps(limit: 6)
-        dailyTotals = historyStore.dailyTotals(days: 7)
+        let points = range.displayPoints
+        historySeries = historyStore.series(range, points: points)
+        historyRangeStart = historySeries.first?.time ?? 0
+        historyTopApps = historyStore.topApps(range, since: historyRangeStart)
     }
 
     func togglePause() {
@@ -148,6 +159,7 @@ final class MonitorEngine: ObservableObject {
             watchdog = nil
             appChannel.stop()
             netChannel.stop()
+            systemLoad.stop()
             status = .paused
         }
     }
@@ -157,6 +169,7 @@ final class MonitorEngine: ObservableObject {
         sessionDown = 0
         sessionUp = 0
         history.clear()
+        systemLoad.resetHistory()
     }
 
     private func launchChannels() {
@@ -283,6 +296,8 @@ final class MonitorEngine: ObservableObject {
         if batchesSincePrune >= 30 {
             batchesSincePrune = 0
             directory.prune(keeping: Set(delta.processes.map(\.pid)))
+            // 顺带按保留期清理历史桶（5 分钟层 26h / 30 分钟层 8.5 天 / 2 小时层 31.5 天）
+            historyStore?.prune()
         }
     }
 
@@ -433,31 +448,53 @@ final class MonitorEngine: ObservableObject {
         tunnelNames = tunnelActive ? ["utun5"] : []
         isUsingPhysicalTotal = true
 
+        // CPU / 内存同样注入合成值：真实机器的负载水平也属于不该出现在官网截图里的信息
+        systemLoad.loadDemoData()
+
         // 历史视图也注入合成数据：离屏渲染/官网截图不应含真实使用记录
-        // （哪些应用在用、每天用多少属于个人信息，一律用与实时视图同风格的演示值）
-        let calendar = Calendar.current
-        dailyTotals = (0..<7).reversed().map { offset -> HistoryStore.DayTotal in
-            let date = calendar.date(byAdding: .day, value: -offset, to: Date()) ?? Date()
-            let wave = 2.9e9 + Double(offset % 3) * 5.4e8 + Double(offset) * 2.6e8
-            return HistoryStore.DayTotal(day: HistoryStore.dayString(for: date),
-                                         bytesIn: UInt64(wave * 0.82),
-                                         bytesOut: UInt64(wave * 0.18))
-        }
-        todayTotal = dailyTotals.last?.total ?? 0
-        weekTotal = dailyTotals.reduce(0) { $0 + $1.total }
-        topAppsInHistory = [
-            HistoryStore.AppEntry(key: "/Applications/Safari.app", name: "Safari",
-                                  bytesIn: 1_284_000_000, bytesOut: 96_400_000),
-            HistoryStore.AppEntry(key: "/Applications/Claude.app", name: "Claude",
-                                  bytesIn: 612_000_000, bytesOut: 21_600_000),
-            HistoryStore.AppEntry(key: "/Applications/BaiduNetdisk_mac.app", name: "百度网盘",
-                                  bytesIn: 418_000_000, bytesOut: 3_100_000),
-            HistoryStore.AppEntry(key: "/Applications/WeChat.app", name: "微信",
-                                  bytesIn: 42_800_000, bytesOut: 88_200_000),
-            HistoryStore.AppEntry(key: "/Applications/Xcode.app", name: "Xcode",
-                                  bytesIn: 12_400_000, bytesOut: 640_000)
-        ]
+        // （哪些应用在用、每天用多少属于个人信息，一律用与实时视图同风格的演示值）。
+        // 具体数据在 refreshHistory(range:) 里按档位现生成——离屏渲染一次只画一档。
         demoLoaded = true
+    }
+
+    /// demo 模式的历史数据：按档位合成一段「工作日高、周末低、日内起伏」的速率曲线
+    /// 与对应范围的 Top 应用排行，让官网截图三种档位都好看。
+    private func loadDemoHistory(_ range: HistoryStore.Granularity) {
+        let calendar = Calendar.current
+        let now = Date()
+        let points = range.displayPoints
+        historySeries = (0..<points).reversed().map { offset -> HistoryStore.SamplePoint in
+            let time = HistoryStore.bucketStart(for: now, granularity: range)
+                - range.seconds * TimeInterval(offset)
+            let date = Date(timeIntervalSince1970: time)
+            let hour = calendar.component(.hour, from: date)
+            let weekday = calendar.component(.weekday, from: date)
+            let isWeekend = weekday == 1 || weekday == 7
+            // 日内节律：白天高、深夜低；工作日比周末高
+            let dayWave = 0.55 + 0.45 * sin(Double(hour - 6) / 24 * 2 * .pi)
+            let weekendFactor = isWeekend ? 0.45 : 1.0
+            let jitter = 0.85 + Double((offset * 37) % 31) / 100.0
+            let downRate = 2.6e6 * dayWave * weekendFactor * jitter   // 平均 ~2.6 MB/s 下行
+            let upRate = 4.2e5 * dayWave * weekendFactor * jitter
+            return HistoryStore.SamplePoint(time: time,
+                                            bytesIn: UInt64(downRate * range.seconds),
+                                            bytesOut: UInt64(upRate * range.seconds))
+        }
+        historyRangeStart = historySeries.first?.time ?? 0
+        // 排行 = 每应用平均速率 × 范围总秒数（Safari 24h 约 10 GB 的量级）
+        let scale = range.seconds * TimeInterval(points)
+        let demoApps: [(String, String, Double, Double)] = [
+            ("/Applications/Safari.app", "Safari", 1.4e5, 0.82),
+            ("/Applications/Claude.app", "Claude", 6.0e4, 0.90),
+            ("/Applications/BaiduNetdisk_mac.app", "百度网盘", 4.0e4, 0.95),
+            ("/Applications/WeChat.app", "微信", 9.0e3, 0.35),
+            ("/Applications/Xcode.app", "Xcode", 4.5e3, 0.88)
+        ]
+        historyTopApps = demoApps.map { key, name, avgRate, inShare in
+            HistoryStore.AppEntry(key: key, name: name,
+                                  bytesIn: UInt64(avgRate * scale * inShare),
+                                  bytesOut: UInt64(avgRate * scale * (1 - inShare)))
+        }
     }
 
     // MARK: - 偏好联动
@@ -479,6 +516,7 @@ final class MonitorEngine: ObservableObject {
                         if !self.netChannelAbandoned {
                             self.netChannel.restart(interval: newValue)
                         }
+                        self.systemLoad.start(interval: newValue)
                     }
                 }
             }

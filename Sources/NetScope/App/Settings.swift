@@ -1,4 +1,5 @@
 import Foundation
+import AppKit
 import ServiceManagement
 import Combine
 
@@ -12,10 +13,63 @@ final class Settings: ObservableObject {
     private enum Key {
         static let interval = "sampleInterval"
         static let rows = "maxVisibleRows"
-        static let sparkline = "showMenuBarSparkline"
+        /// 1.1.4 之前控制菜单栏趋势图的布尔开关，只用于迁移
+        static let legacySparkline = "showMenuBarSparkline"
+        /// 1.1.4 的「速率 / 趋势 / 负载」三态，1.1.5 起拆分，只用于迁移
+        static let legacyStyle = "menuBarStyle"
+        static let networkBarStyle = "networkBarStyle"
+        static let showCPUItem = "menuBarShowsCPU"
+        static let showMemoryItem = "menuBarShowsMemory"
+        static let showNetworkItem = "menuBarShowsNetwork"
         static let alerts = "alertsEnabled"
         static let alertThreshold = "alertThresholdMBps"
         static let physicalOnly = "physicalOnlyList"
+        static let appearanceTheme = "appearanceTheme"
+    }
+
+    /// 面板主题。为什么用 NSAppearance 而不是 `.environment(\.colorScheme)`：
+    /// Theme 的语义色是 NSColor 动态色（按视图 effectiveAppearance 解析），
+    /// 环境值只覆盖 SwiftUI 内容；在面板宿主视图上设 appearance 两边一起切。
+    enum AppearanceTheme: String, CaseIterable, Identifiable {
+        case system
+        case light
+        case dark
+
+        var id: String { rawValue }
+
+        var label: String {
+            switch self {
+            case .system: return "跟随系统"
+            case .light: return "浅色"
+            case .dark: return "深色"
+            }
+        }
+
+        /// 强制外观；跟随系统返回 nil（继承系统，含系统的实时切换）。
+        /// 只作用于弹出面板；菜单栏徽标跟随菜单栏自身的深浅，不在这里强制。
+        var nsAppearance: NSAppearance? {
+            switch self {
+            case .system: return nil
+            case .light: return NSAppearance(named: .aqua)
+            case .dark: return NSAppearance(named: .darkAqua)
+            }
+        }
+    }
+
+    /// 网络那一项在菜单栏里的形态。CPU / 内存各有独立菜单栏项之后，
+    /// 这里不再需要「负载」选项 —— 那两种指标已经拆成单独的可见项。
+    enum NetworkBarStyle: String, CaseIterable, Identifiable {
+        case rate
+        case sparkline
+
+        var id: String { rawValue }
+
+        var label: String {
+            switch self {
+            case .rate: return "速率"
+            case .sparkline: return "趋势"
+            }
+        }
     }
 
     /// nettop 采样间隔（秒）。nettop 的 `-s` 只接受整数，故限定 1–5。
@@ -33,9 +87,23 @@ final class Settings: ObservableObject {
         didSet { defaults.set(maxVisibleRows, forKey: Key.rows) }
     }
 
-    /// 菜单栏用迷你趋势图替代静态图标。
-    @Published var showMenuBarSparkline: Bool {
-        didSet { defaults.set(showMenuBarSparkline, forKey: Key.sparkline) }
+    /// 网络项在菜单栏里的图标形态（速率 / 趋势图）。
+    @Published var networkBarStyle: NetworkBarStyle {
+        didSet { defaults.set(networkBarStyle.rawValue, forKey: Key.networkBarStyle) }
+    }
+
+    /// 菜单栏三项各自独立可见。关掉某一项时它对应的 statusItem 直接 `isVisible = false`，
+    /// 而不是销毁重建 —— 重建会让右侧其余图标左右跳一下。
+    @Published var menuBarShowsCPU: Bool {
+        didSet { defaults.set(menuBarShowsCPU, forKey: Key.showCPUItem) }
+    }
+
+    @Published var menuBarShowsMemory: Bool {
+        didSet { defaults.set(menuBarShowsMemory, forKey: Key.showMemoryItem) }
+    }
+
+    @Published var menuBarShowsNetwork: Bool {
+        didSet { defaults.set(menuBarShowsNetwork, forKey: Key.showNetworkItem) }
     }
 
     /// 某个应用持续占用带宽时发系统通知。
@@ -51,6 +119,11 @@ final class Settings: ObservableObject {
     /// 列表只统计物理链路（此时各行之和不含 VPN 加密副本，但看不到走隧道内的应用）。
     @Published var physicalOnlyList: Bool {
         didSet { defaults.set(physicalOnlyList, forKey: Key.physicalOnly) }
+    }
+
+    /// 面板主题（跟随系统 / 浅色 / 深色）。
+    @Published var appearanceTheme: AppearanceTheme {
+        didSet { defaults.set(appearanceTheme.rawValue, forKey: Key.appearanceTheme) }
     }
 
     /// 开机自动启动。状态以 SMAppService 为准，写失败时回滚开关。
@@ -84,13 +157,31 @@ final class Settings: ObservableObject {
         let storedRows = defaults.object(forKey: Key.rows) as? Int ?? 8
         maxVisibleRows = min(max(storedRows, 3), 15)
         launchAtLogin = SMAppService.mainApp.status == .enabled
-        // 默认用「网络图标 + 双行数值」：菜单栏里一眼能看到上下行各是多少。
-        // 趋势图是可选形态（右键菜单可切），比数值宽 10pt 且不含具体数字。
-        showMenuBarSparkline = defaults.object(forKey: Key.sparkline) as? Bool ?? false
+
+        // 菜单栏形态迁移（1.1.5）：1.1.4 是「速率 / 趋势 / 负载」三态单开关，
+        // 现在拆成「网络项用速率还是趋势」+「CPU / 内存项各自开关」。
+        // 旧的 ".load" 表示用户只想看负载 → 保留 CPU / 内存两项、网络项默认也开着，
+        // 宁可多一项也能一键在右键菜单里关掉，不要升级后突然少了他要的指标。
+        if let raw = defaults.string(forKey: Key.networkBarStyle),
+           let style = NetworkBarStyle(rawValue: raw) {
+            networkBarStyle = style
+        } else if defaults.string(forKey: Key.legacyStyle) == "sparkline"
+                    || defaults.object(forKey: Key.legacySparkline) as? Bool == true {
+            networkBarStyle = .sparkline
+        } else {
+            networkBarStyle = .rate
+        }
+
+        menuBarShowsCPU = defaults.object(forKey: Key.showCPUItem) as? Bool ?? true
+        menuBarShowsMemory = defaults.object(forKey: Key.showMemoryItem) as? Bool ?? true
+        menuBarShowsNetwork = defaults.object(forKey: Key.showNetworkItem) as? Bool ?? true
+
         alertsEnabled = defaults.bool(forKey: Key.alerts)
         let threshold = defaults.object(forKey: Key.alertThreshold) as? Double ?? 5.0
         alertThresholdMBps = min(max(threshold, 0.1), 1000)
         physicalOnlyList = defaults.bool(forKey: Key.physicalOnly)
+        appearanceTheme = defaults.string(forKey: Key.appearanceTheme)
+            .flatMap(AppearanceTheme.init(rawValue:)) ?? .system
     }
 
     /// 重新从系统读取开机启动状态（用户可能在系统设置里改过）。
