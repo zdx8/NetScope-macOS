@@ -128,17 +128,24 @@ enum MenuBarBadge {
         let segments = layout(state)
         let width = imageWidth(state)
         let image = NSImage(size: NSSize(width: width, height: height), flipped: false) { rect in
-            let paragraph = NSMutableParagraphStyle()
-            paragraph.alignment = .right
-            paragraph.lineBreakMode = .byClipping
+            // 右对齐：网络段速率数字变化时右缘稳定，不左右抖。
+            // 居中：CPU / MEM 两行块在段内居中——数值比预留宽（"100%"）短时
+            // 靠右贴边会让下方的标签看着歪（用户反馈：CPU 和 MEM 居中）。
+            let rightParagraph = NSMutableParagraphStyle()
+            rightParagraph.alignment = .right
+            rightParagraph.lineBreakMode = .byClipping
+            let centerParagraph = NSMutableParagraphStyle()
+            centerParagraph.alignment = .center
+            centerParagraph.lineBreakMode = .byClipping
 
             func draw(_ text: String, font: NSFont, alpha: CGFloat,
-                      in box: NSRect, lineHeight: CGFloat, bottomY: CGFloat) {
+                      in box: NSRect, lineHeight: CGFloat, bottomY: CGFloat,
+                      align: NSTextAlignment = .right) {
                 let attributes: [NSAttributedString.Key: Any] = [
                     .font: font,
                     // template image 只认 alpha：用「浅一点」区分主次，不能换颜色
                     .foregroundColor: NSColor.black.withAlphaComponent(alpha),
-                    .paragraphStyle: paragraph
+                    .paragraphStyle: align == .center ? centerParagraph : rightParagraph
                 ]
                 (text as NSString).draw(in: NSRect(x: box.minX, y: bottomY,
                                                    width: box.width, height: lineHeight),
@@ -176,7 +183,7 @@ enum MenuBarBadge {
                     let label = segment.slot == .cpu ? "CPU" : "MEM"
                     drawTwoLines(top: top, topFont: percentFont, topHeight: 12,
                                  bottom: label, bottomFont: labelFont, bottomHeight: 9,
-                                 in: box, draw: draw)
+                                 in: box, align: .center, draw: draw)
 
                 case .network:
                     switch state.networkGlyph {
@@ -209,13 +216,13 @@ enum MenuBarBadge {
     private static func drawTwoLines(
         top: String, topFont: NSFont, topHeight: CGFloat,
         bottom: String, bottomFont: NSFont, bottomHeight: CGFloat,
-        in box: NSRect,
-        draw: (String, NSFont, CGFloat, NSRect, CGFloat, CGFloat) -> Void
+        in box: NSRect, align: NSTextAlignment = .right,
+        draw: (String, NSFont, CGFloat, NSRect, CGFloat, CGFloat, NSTextAlignment) -> Void
     ) {
         let blockHeight = topHeight + bottomHeight
         let bottomY = box.midY - blockHeight / 2
-        draw(bottom, bottomFont, 0.8, box, bottomHeight, bottomY)
-        draw(top, topFont, 1, box, topHeight, bottomY + bottomHeight)
+        draw(bottom, bottomFont, 0.8, box, bottomHeight, bottomY, align)
+        draw(top, topFont, 1, box, topHeight, bottomY + bottomHeight, align)
     }
 
     static func accessibilityText(_ state: State) -> String {

@@ -1,6 +1,6 @@
 # NetScope 交接文档
 
-> 版本 1.3.1（build 261119.0405）· 2026-11-19 · 本机实测，非交付时回溯文档
+> 版本 1.3.1（build 261119.0413）· 2026-11-19 · 本机实测，非交付时回溯文档
 
 ---
 
@@ -18,9 +18,9 @@
 
 | 交付物 | 路径 | 版本 | 校验 |
 |---|---|---|---|
-| 应用包 | `dist/NetScope.app`（已装到 `/Applications`） | 1.3.1（发布产物，同 DMG 内一致） | SHA-256（可执行文件）`8a4b3129de314bd18356b5ca472ec98b1c90e7e0d4fddcdd3096c8ab70778c42` |
+| 应用包 | `dist/NetScope.app`（已装到 `/Applications`） | 1.3.1（发布产物，同 DMG 内一致） | SHA-256（可执行文件）`d918392357f22a2dff3e650e1c154afc75830ac72d400edb686c9eae458a7160`；DMG `31ce62c7efdb80e32e10c3e8560704726f65ddb2a2ee85684b6b1c05c5adda39`（即附件 `.sha256` 内容） |
 | 源码 | `~/AiWork/SoftwareDevelopment/NetScope` | 见 git log | — |
-| 界面快照 | `docs/panel.png`、`panel-light.png`、`panel-dark.png`、`panel-settings.png`、`panel-cpu.png`、`panel-memory.png`、`menubar-badge.png` | — | 已按 1.3.1 重渲染（720×1040，2× 密度；系统功能页为指标卡新样式，设置页含「外观」卡）。离屏渲染 + demo 合成数据，无真实使用记录；`menubar-badge.png` 为 2× 位图合成，非屏幕截图。`panel-history.png` 已随历史页移除而删除 |
+| 界面快照 | `docs/panel.png`、`panel-light.png`、`panel-dark.png`、`panel-settings.png`、`panel-cpu.png`、`panel-memory.png`、`menubar-badge.png` | — | 已按 1.3.1 重渲染（720×1040，2× 密度；系统功能页为指标卡新样式，设置页含「外观」卡）。离屏渲染 + demo 合成数据，无真实使用记录；`menubar-badge.png` 为 2× 位图合成（浅色），1.3.1 起 CPU/MEM 两行在段内居中。`panel-history.png` 已随历史页移除而删除 |
 
 - `.app` 整包约 3.9 MB（可执行文件 1,743,488 字节）。其余体积来自 libsqlite3 与 UserNotifications 的链接。
 - **线上版本仍是 v1.1.3**：仓库 <https://github.com/zdx8/NetScope-macOS>，官网 <https://zdx8.github.io/NetScope-macOS/>
@@ -525,6 +525,6 @@ netstat -ib -I en0 | awk 'NR==2{print $7}'   # 读两次，与面板"本次累�
 | 2026-11-19 | 1.2.0 | **三面板合一为两页 + 命中修复**（用户需求）：①「点 CPU 弹内存」根因是状态项 action 会被重放且重放坐标错乱——改为按下当刻记录 `NSEvent.mouseLocation` 并用徽标矩形校验，不在徽标内的点击整个作废（决策 13）；②三详情合并为「清理释放 / 系统功能」两页，`AxTabBar` 选项栏切换，`PanelRouter` 管页与排序；③CPU/内存合并页双卡 + 双曲线同刻度 + 排序 chip + 悬停「关闭」直接结束应用；④系统区块（磁盘/散热/开机时长）替代拿不到的温度/风扇（AppleSMC 无特权全键 `0x84`）；⑤一次点击双派发防抖 + `.transient` 收起时序修复（再点徽标=收起）。自检 173 → **194** 项 |
 | 2026-11-19 | 1.2.0+ | **排版与紧凑**（用户反馈）：①系统区块三格统计改按 `(内宽−分隔线)/3` 严格等宽（`maxWidth:.infinity` 的「理想宽+剩余均分」规则会让「1 天 9 小时」撑歪列），明细行改左标签右数值；②网络曲线卡整体移除（决策 12），「实时/历史」切换与 `HistorySection` 删除，引擎采集保留，列表高度自适应；③菜单栏徽标收紧 141 → **129 pt**（内边距/分隔带/图标/字号各压 1–2pt）。仍未提交、未发布 |
 | 2026-11-19 | 1.2.1 | **历史流量柱状图（短命版本，当轮被 1.3.0 替换）**：日/周/月按天柱状图（14/8/6 桶），面板加高 520 → 560、清理释放页程序列表 5 → 6 行（174 → 209pt）。真机验证了「芯片点击切换档位」通路。用户随后把需求升级为按时间均值的速率曲线，此版本的柱状图被 1.3.0 的流量统计取代，但面板高度与列表行数沿用 |
-| 2026-11-19 | 1.3.1 | **系统区块定稿 + 面板主题**（用户三轮反馈）：①系统区块改为**指标卡样式**（对齐清理释放页 CPU/内存卡）：左「磁盘占用」琥珀图标 + 24pt 占用率 + 可用/总量明细（可用空间并入此列），右「本机速率」蓝色图标 + 上行在上/下行在下（各带语义色箭头），散热/开机时长撤下（SystemStats 仍采样，恢复展示直接接回）；②设置页新增「外观」卡：主题三档（跟随系统/浅色/深色），机制是在面板宿主视图上设 `NSAppearance`（Theme 语义色为 NSColor 动态色，SwiftUI colorScheme 随 effectiveAppearance 联动），菜单栏徽标不强制；③新增 `Scripts/loadcheck/`（CPU/内存读数受控负载对照：13 项断言全过，内存逐字段对 vm_stat、500MB footprint、timebase、单核口径、4 核满载 +40）；④修 ProcessLoadProbe 注释算术错误（44 天 → 实际约 195 年）；⑤HANDOVER 验证清单第 5 条从退役的 daily_app_traffic 改查 traffic_samples；⑥系统卡两列配比定稿：左右不再对半分（内容长短悬殊导致左空右挤），按 42/58 定宽（`diskColumnWidth` 由面板定宽算出），左列定高 77pt + 明细沉底与下行速率同底线，分隔线通高 74pt（定高框内的 Spacer 安全，外层 maxHeight 提议不会导致贪婪扩张）；⑦磁盘占比数值在标签与明细之间**上下居中**（包一层 `maxHeight: .infinity` 弹性框，列定高下只分到剩余空间）。自检 214 项全过。未提交、未发布 |
+| 2026-11-19 | 1.3.1 | **系统区块定稿 + 面板主题**（用户三轮反馈）：①系统区块改为**指标卡样式**（对齐清理释放页 CPU/内存卡）：左「磁盘占用」琥珀图标 + 24pt 占用率 + 可用/总量明细（可用空间并入此列），右「本机速率」蓝色图标 + 上行在上/下行在下（各带语义色箭头），散热/开机时长撤下（SystemStats 仍采样，恢复展示直接接回）；②设置页新增「外观」卡：主题三档（跟随系统/浅色/深色），机制是在面板宿主视图上设 `NSAppearance`（Theme 语义色为 NSColor 动态色，SwiftUI colorScheme 随 effectiveAppearance 联动），菜单栏徽标不强制；③新增 `Scripts/loadcheck/`（CPU/内存读数受控负载对照：13 项断言全过，内存逐字段对 vm_stat、500MB footprint、timebase、单核口径、4 核满载 +40）；④修 ProcessLoadProbe 注释算术错误（44 天 → 实际约 195 年）；⑤HANDOVER 验证清单第 5 条从退役的 daily_app_traffic 改查 traffic_samples；⑥系统卡两列配比定稿：左右不再对半分（内容长短悬殊导致左空右挤），按 42/58 定宽（`diskColumnWidth` 由面板定宽算出），左列定高 77pt + 明细沉底与下行速率同底线，分隔线通高 74pt（定高框内的 Spacer 安全，外层 maxHeight 提议不会导致贪婪扩张）；⑦磁盘占比数值在标签与明细之间**上下居中**（包一层 `maxHeight: .infinity` 弹性框，列定高下只分到剩余空间）；⑧菜单栏徽标 CPU/MEM 两行在段内**居中**（原右对齐让标签歪向一侧；网络段速率保持右对齐——数字变化时右缘稳定）。发布前全量检查：自检 214 项 + loadcheck 13 项全过、脱敏扫描通过（IP 仅 loopback/0.0.0.0/198.18.0.0 基准段、无用户名/密钥/个人邮箱）、新增 MIT LICENSE 与 DMG 使用说明、DMG 改固定命名。已提交、已发布 |
 | 2026-11-19 | 1.3.0 | **流量统计改造**（用户需求「分为实时，日图表（5分钟平均值）周图表（30分钟平均值）月图表（2小时平均值），程序里面也要同步统计显示」）：①持久化从按天表改为**分层时间桶**（决策 14），`daily_app_traffic` 退役不迁移；②`TrafficRange`（实时/日/周/月）进 `Core`，`PanelRouter` 持有当前档位，图表与**应用列表同步换档**（历史档显示区间内每应用累计排行，图标走 `NSWorkspace`）；③曲线卡以 `RateLinesChart` 回归（自动定标 + 峰值标注 + 起止时间轴）；④`--range day\|week\|month` 渲染参数；⑤自检 194 → **214** 项。真机验证实时→日切换（真实数据渲染 + 列表联动）与收起；周/月由离屏渲染覆盖。未提交、未发布 |
 | 2026-11-18 | 1.1.6 | **合并菜单栏 + 程序占用 + Astryx UI**（用户需求）：①三个 statusItem 合并为一项，内部按 `CPU ｜ 内存 ｜ 网络` 三段排列、竖线分隔，点击按像素区间命中并锚定 popover（整块 141pt，省 18pt）；②`ProcessLoadProbe`（libproc：`proc_pid_rusage` 累计时间差分 + `phys_footprint`）按应用聚合，CPU/内存详情底部加「程序」列表，按占用排序、固定高度内滚动；③网络面板移除系统负载区块与 `showSystemLoad` 设置；④按 meta/astryx 的 `neutral` 令牌重做配色/字号/4pt 间距/圆角/卡片/chip/按钮，三个面板统一 360×520 固定尺寸。**关键坑**：`ri_user_time` 是 mach 节拍（125/3），按纳秒解读会让进程占用小 41 倍。自检 149 → **173** 项断言。`docs/` 截图与官网文案同步重做。未提交、未发布 |
