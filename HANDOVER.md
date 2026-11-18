@@ -20,10 +20,10 @@
 |---|---|---|---|
 | 应用包 | `dist/NetScope.app`（已装到 `/Applications`） | 1.3.1（发布产物，同 DMG 内一致） | SHA-256（可执行文件）`d918392357f22a2dff3e650e1c154afc75830ac72d400edb686c9eae458a7160`；DMG `31ce62c7efdb80e32e10c3e8560704726f65ddb2a2ee85684b6b1c05c5adda39`（即附件 `.sha256` 内容） |
 | 源码 | `~/AiWork/SoftwareDevelopment/NetScope` | 见 git log | — |
-| 界面快照 | `docs/panel.png`、`panel-light.png`、`panel-dark.png`、`panel-settings.png`、`panel-cpu.png`、`panel-memory.png`、`menubar-badge.png` | — | 已按 1.3.1 重渲染（720×1040，2× 密度；系统功能页为指标卡新样式，设置页含「外观」卡）。离屏渲染 + demo 合成数据，无真实使用记录；`menubar-badge.png` 为 2× 位图合成（浅色），1.3.1 起 CPU/MEM 两行在段内居中。`panel-history.png` 已随历史页移除而删除 |
+| 界面快照 | `docs/panel.png`、`panel-light.png`、`panel-dark.png`、`panel-day[-dark].png`、`panel-week[-dark].png`、`panel-month[-dark].png`、`panel-settings.png`、`panel-cpu.png`、`panel-memory.png`、`menubar-badge.png`、`menubar-badge-dark.png` | — | 实时 / 日 / 周 / 月四档浅 + 深两套均按 1.3.1 发布版二进制重渲染（720×1120，2× 密度；系统功能页为指标卡新样式，设置页含「外观」卡）。`panel-cpu/memory.png` 为 1.3.0 后期渲染（清理释放页 1.3.1 未改动，仍准确）。离屏渲染 + demo 合成数据，无真实使用记录；`menubar-badge[-dark].png` 为 2× 位图合成（浅 / 深），1.3.1 起 CPU/MEM 两行在段内居中。`panel-history.png` 已随历史页移除而删除 |
 
 - `.app` 整包约 3.9 MB（可执行文件 1,743,488 字节）。其余体积来自 libsqlite3 与 UserNotifications 的链接。
-- **线上版本仍是 v1.1.3**：仓库 <https://github.com/zdx8/NetScope-macOS>，官网 <https://zdx8.github.io/NetScope-macOS/>
+- **线上已是 v1.3.1**（Release + DMG 附件 + Pages 均已上线，2026-11-19）：仓库 <https://github.com/zdx8/NetScope-macOS>，官网 <https://zdx8.github.io/NetScope-macOS/>。推送走 Git Data API 逐字节复刻（本机代理拦 `github.com` 的 git push，见踩坑手册）
   （Pages 源 = `main` 分支 `/docs`），Release `v1.1.3` 附 `NetScope-1.1.3-arm64.dmg`（2,003,045 字节，
   SHA-256 `31a16bf5d8ea5565f857fe6f867f645044d0290c6d5a201f6487d88313bf9753`）。
   1.1.4–1.3.0 此前均未提交，已随 1.3.1 一并提交发布；DMG 已按 2026-11-09 新规范命名（`NetScope-macOS-arm64.dmg`，不带版本号，保住 `releases/latest/download/` 永久链接）。

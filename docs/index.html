@@ -4,12 +4,12 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>NetScope — macOS 菜单栏网络流量监控</title>
-<meta name="description" content="macOS 原生菜单栏应用，按应用统计上下行流量。菜单栏三段直出 CPU / 内存 / 网络，流量统计分实时、日、周、月四档，超阈值告警，无 root、无内核扩展、零第三方依赖。">
+<meta name="description" content="macOS 原生菜单栏应用，按应用统计上下行流量。菜单栏三段直出网络 / CPU / 内存，流量统计分实时、日、周、月四档，图表与应用排行同步换档，面板主题可切换。无 root、无内核扩展、零第三方依赖，数据全部留在本机。">
 <link rel="stylesheet" href="style.css">
 <link rel="icon" href="images/icon.png">
 <meta property="og:title" content="NetScope — macOS 菜单栏网络流量监控">
-<meta property="og:description" content="点开就知道刚才到底是谁在偷偷跑流量。">
-<meta property="og:image" content="panel.png">
+<meta property="og:description" content="点开就知道，刚才到底是谁在跑流量。">
+<meta property="og:image" content="panel-dark.png">
 </head>
 <body>
 
@@ -20,6 +20,7 @@
       <span>NetScope</span>
     </a>
     <nav class="topnav">
+      <a href="#tiers">流量统计</a>
       <a href="#features">功能</a>
       <a href="#shots">界面</a>
       <a href="#install">安装</a>
@@ -30,186 +31,287 @@
 
 <main id="top">
 
+  <!-- ============ Hero ============ -->
   <section class="hero">
     <div class="wrap hero-inner">
-      <div class="hero-copy">
-        <p class="eyebrow">macOS 菜单栏 · 应用级流量监控</p>
-        <h1>点开就知道，<br>刚才到底是谁在跑流量。</h1>
-        <p class="lede">
-          按应用统计上下行字节，每秒刷新。菜单栏三段数值直出 CPU / 内存 / 网络，
-          流量统计分实时、日、周、月四档，图表与程序排行同步切换，超阈值告警。
-          <strong>无 root、无内核扩展、零第三方依赖</strong>，可执行文件 1 MB。
-        </p>
-        <div class="cta">
-          <a class="btn primary" href="https://github.com/zdx8/NetScope-macOS/releases/latest/download/NetScope-macOS-arm64.dmg">
-            下载 v1.3.1
-          </a>
-          <a class="btn" href="#install">从源码构建</a>
-        </div>
-        <p class="fineprint">Apple 芯片 · macOS 14+ · 临时签名（需自行签名后分发）</p>
+      <p class="pill"><span class="dot"></span>v1.3.1 · Apple 芯片 · macOS 14+</p>
+      <h1>点开就知道，<br>刚才到底是谁在跑流量。</h1>
+      <p class="lede">
+        菜单栏常驻三段数值——网络速率、CPU、内存，点哪段弹哪段详情。
+        流量统计分<strong>实时、日、周、月</strong>四档，曲线与应用排行一起换档；
+        按应用聚合，总量只认物理网卡。无 root、无内核扩展、零第三方依赖。
+      </p>
+      <div class="cta">
+        <a class="btn primary" href="https://github.com/zdx8/NetScope-macOS/releases/latest/download/NetScope-macOS-arm64.dmg">
+          下载 v1.3.1
+        </a>
+        <a class="btn" href="https://github.com/zdx8/NetScope-macOS">查看源码</a>
       </div>
+      <p class="fineprint">DMG 2.2 MB · 永久链接始终指向最新版 · 临时签名，分发需自行签名公证</p>
 
-      <figure class="hero-shot">
-        <img src="menubar-badge.png" alt="菜单栏中的 NetScope：CPU、内存、网络三段数值，竖线分隔">
-        <figcaption>菜单栏形态：CPU ｜ 内存 ｜ 网络三段合为一项，点哪段弹哪段详情</figcaption>
-      </figure>
+      <!-- 菜单栏实境：真实徽标位图放进 macOS 菜单栏样式的容器 -->
+      <div class="menubar-mock" role="img" aria-label="macOS 菜单栏中的 NetScope：CPU、内存、网络三段数值">
+        <div class="mb-left">
+          <span class="mb-app">⌘ NetScope</span>
+          <span class="mb-menu">文件　窗口　帮助</span>
+        </div>
+        <div class="mb-right">
+          <img src="menubar-badge-dark.png" alt="NetScope 徽标：CPU 42%、MEM 79%、网络上行 1.2M 下行 8.4M">
+          <span class="mb-clock">周四 04:54</span>
+        </div>
+      </div>
     </div>
   </section>
 
-  <section id="shots" class="section">
+  <!-- ============ 数字条 ============ -->
+  <section class="strip">
+    <div class="wrap strip-inner">
+      <div class="stat"><strong>0</strong><span>第三方依赖<br>纯系统框架</span></div>
+      <div class="stat"><strong>1 MB</strong><span>可执行文件<br>装完即走</span></div>
+      <div class="stat"><strong>0.06%</strong><span>菜单栏常驻<br>CPU 占用</span></div>
+      <div class="stat"><strong>100%</strong><span>数据留在本机<br>不联网上报</span></div>
+    </div>
+  </section>
+
+  <!-- ============ 四档流量统计（交互） ============ -->
+  <section id="tiers" class="section">
     <div class="wrap">
-      <h2>界面</h2>
-      <div class="shots">
-        <figure class="shot wide">
-          <img src="panel.png" alt="NetScope 系统功能面板（实时档）">
-          <figcaption>系统功能：磁盘占用（含可用空间）与本机速率，实时流量曲线，应用列表按当前速率排序。VPN 客户端带盾牌标注。</figcaption>
-        </figure>
-        <div class="shot-pair">
-          <figure class="shot">
-            <img src="panel-day.png" alt="NetScope 日视图：5 分钟平均速率">
-            <figcaption>流量统计 · 日：过去 24 小时，5 分钟平均值，下行蓝 / 上行橙双线，应用列表切到当日累计排行</figcaption>
-          </figure>
-          <figure class="shot">
-            <img src="panel-week.png" alt="NetScope 周视图：30 分钟平均速率">
-            <figcaption>流量统计 · 周：过去 7 天，30 分钟平均值，工作日与周末的节奏一目了然</figcaption>
-          </figure>
+      <p class="eyebrow">四档流量统计</p>
+      <h2>从这一秒，看到这个月。</h2>
+      <p class="sub">
+        图表与应用列表始终一起换档：实时看速率，日 / 周 / 月看平均速率与区间累计。
+        点一下试试——和 App 里的芯片切换是同一个交互。
+      </p>
+
+      <div class="viewer-stage">
+        <div class="seg" role="group" aria-label="流量统计档位">
+          <button type="button" data-tier="live" aria-pressed="true">实时</button>
+          <button type="button" data-tier="day" aria-pressed="false">日</button>
+          <button type="button" data-tier="week" aria-pressed="false">周</button>
+          <button type="button" data-tier="month" aria-pressed="false">月</button>
         </div>
-        <div class="shot-pair">
-          <figure class="shot">
-            <img src="panel-month.png" alt="NetScope 月视图：2 小时平均速率">
-            <figcaption>流量统计 · 月：过去 30 天，2 小时平均值，哪个应用在长期吃流量直接排名</figcaption>
-          </figure>
-          <figure class="shot">
-            <img src="panel-dark.png" alt="NetScope 深色模式">
-            <figcaption>深色模式：同一面板跟随系统外观，两套主题都按对比度校准</figcaption>
-          </figure>
-        </div>
-        <figure class="shot wide">
-          <img src="panel-settings.png" alt="NetScope 设置项">
-          <figcaption>设置：刷新间隔、显示条数、列表口径、告警、开机启动</figcaption>
+
+        <figure class="viewer">
+          <img id="tier-img" src="panel-dark.png"
+               alt="NetScope 实时档：60 秒速率曲线，应用列表按当前速率排序">
+          <figcaption id="tier-caption">
+            实时：每秒刷新的当前速率曲线，60 秒滑动窗口；应用列表按此刻速率排序，谁在跑流量一眼可见。
+          </figcaption>
         </figure>
-        <div class="shot-pair">
-          <figure class="shot">
-            <img src="panel-cpu.png" alt="NetScope 清理释放面板（按 CPU）">
-            <figcaption>清理释放：CPU 与内存双卡并排，程序列表按 CPU 排序，悬停行可一键关闭</figcaption>
-          </figure>
-          <figure class="shot">
-            <img src="panel-memory.png" alt="NetScope 清理释放面板（按内存）">
-            <figcaption>清理释放：切到「按内存」排序，谁在吃内存一目了然</figcaption>
-          </figure>
+
+        <div class="tier-meta" aria-live="polite">
+          <div class="meta"><span class="k">时间窗</span><span class="v" id="meta-window">60 秒</span></div>
+          <div class="meta"><span class="k">平均窗口</span><span class="v" id="meta-avg">每秒刷新</span></div>
+          <div class="meta"><span class="k">数据保留</span><span class="v" id="meta-keep">内存环形缓冲，不落盘</span></div>
+        </div>
+      </div>
+
+      <!-- 分层时间桶：数据沉淀机制 -->
+      <div class="buckets-block">
+        <h3>数据怎么沉淀</h3>
+        <p class="sub">
+          每秒增量先落进 5 分钟桶，落盘时后台自动聚合成 30 分钟与 2 小时桶——
+          父桶按实际所属区间整体重算覆盖，不会越加越重；过期桶自动清理。
+          SQLite 单文件，全部留在本机。
+        </p>
+        <div class="buckets">
+          <div class="bucket">
+            <span class="b-gran">5 分钟桶</span>
+            <span class="b-keep">保留 26 小时</span>
+            <span class="b-desc">支撑日视图与每秒增量落盘</span>
+          </div>
+          <div class="b-arrow"><span class="line">⟶</span>自动聚合<br>覆盖写不翻倍</div>
+          <div class="bucket">
+            <span class="b-gran">30 分钟桶</span>
+            <span class="b-keep">保留 8.5 天</span>
+            <span class="b-desc">支撑周视图的长节奏</span>
+          </div>
+          <div class="b-arrow"><span class="line">⟶</span>自动聚合<br>过期自动清理</div>
+          <div class="bucket">
+            <span class="b-gran">2 小时桶</span>
+            <span class="b-keep">保留 31.5 天</span>
+            <span class="b-desc">支撑月视图的长期趋势</span>
+          </div>
         </div>
       </div>
     </div>
   </section>
 
+  <!-- ============ 三根支柱 ============ -->
   <section id="features" class="section muted">
     <div class="wrap">
-      <h2>它解决什么</h2>
+      <p class="eyebrow">为什么好用</p>
+      <h2>三件事，做扎实。</h2>
       <div class="grid">
 
         <article class="card">
-          <h3>按应用聚合，不是按进程</h3>
-          <p>Chrome 开了二十个 Helper？它们会归并成一条 <code>Google Chrome</code>。
-             沿 <code>proc_pidpath</code> 向上找最外层 <code>.app</code>，所以 Helper、渲染进程都不会散落成一堆噪音。</p>
+          <div class="card-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <rect x="3" y="8" width="18" height="9" rx="3"/>
+              <path d="M9 8v9M15 8v9"/>
+              <path d="M5.5 5h13" opacity=".45"/>
+            </svg>
+          </div>
+          <h3>菜单栏三段直出</h3>
+          <p>网络速率、CPU、内存各占一段，合成一项菜单栏空间。三段可独立开关，
+             点哪段弹哪段详情；数值按深浅色分别校准对比度，模板渲染跟随系统外观。</p>
         </article>
 
         <article class="card">
-          <h3>总量只认物理网卡</h3>
-          <p>开着 TUN 型 VPN 或虚拟机时，同一份数据会在虚拟接口和物理接口各计一次。
-             实测差 2.2 倍（23,575 B/s vs 10,758 B/s）。这里跑两条采样通道：列表看全接口，总量只看 <code>en*</code>。</p>
+          <div class="card-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <rect x="3" y="4" width="18" height="7" rx="2"/>
+              <rect x="3" y="14" width="18" height="7" rx="2"/>
+              <path d="M7 7.5h4M7 17.5h3" opacity=".6"/>
+            </svg>
+          </div>
+          <h3>双页签，各管一摊</h3>
+          <p>「清理释放」看 CPU / 内存占用大户，悬停进程行一键关闭；
+             「系统功能」看磁盘占用、本机速率与四档流量统计，一个面板不打转。</p>
         </article>
 
         <article class="card">
-          <h3>悬停即关</h3>
-          <p>鼠标划过「清理释放」的程序行，行尾出现红色「关闭」，点一下就结束这个应用。
-             面板里还有按 CPU / 按内存两档排序，占用大户排最前。</p>
-        </article>
-
-        <article class="card">
-          <h3>实时、日、周、月四档流量统计</h3>
-          <p>增量先落进 5 分钟桶，后台自动聚合成 30 分钟与 2 小时桶（覆盖写，不会越加越重）。
-             图表与下面的应用排行一起换档：实时看速率，日 / 周 / 月看平均速率与区间累计。</p>
-        </article>
-
-        <article class="card">
-          <h3>告警不吵人</h3>
-          <p>连续 3 次采样都超阈值才发通知，同应用 10 分钟冷却，掉到阈值以下立即清零。
-             下载刚开始那一秒的峰值不会打扰你。</p>
-        </article>
-
-        <article class="card">
-          <h3>不用装任何东西</h3>
-          <p>数据来自系统自带的 <code>/usr/bin/nettop</code>，不需要 root、不需要内核扩展或网络扩展，
-             也不需要辅助功能、屏幕录制、完全磁盘访问权限。</p>
-        </article>
-
-        <article class="card">
-          <h3>轻</h3>
-          <p>主进程 CPU 0.06%、内存 32 MB；两个 nettop 子进程各 0.1%、6 MB。
-             每秒采样一次，界面只在菜单栏里安静待着。</p>
+          <div class="card-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M12 3l7 3v5.2c0 4.4-2.9 7.4-7 8.8-4.1-1.4-7-4.4-7-8.8V6l7-3z"/>
+              <path d="M9.5 12.5l2-2.2 2 2.2" opacity=".7"/>
+              <path d="M11.5 10.3v4" opacity=".7"/>
+            </svg>
+          </div>
+          <h3>按应用聚合，口径干净</h3>
+          <p>Chrome 的 Helper 归并成一条 <code>Google Chrome</code>（沿 <code>proc_pidpath</code> 找最外层 .app）；
+             开 TUN 型 VPN 时总量只认物理网卡去重，隧道内应用列表带盾牌标注。</p>
         </article>
 
       </div>
     </div>
   </section>
 
-  <section class="section">
+  <!-- ============ 界面全览 ============ -->
+  <section id="shots" class="section">
     <div class="wrap">
-      <h2>怎么做的</h2>
-      <div class="prose">
-        <p>把 <code>nettop</code> 接到伪终端上实时读：</p>
-        <pre><code>nettop -P -x -L 0 -s 1 -J bytes_in,bytes_out -t external</code></pre>
-        <ul>
-          <li><code>-L N</code> 的采样窗口固定 30 秒，与 <code>N</code> 无关 —— 没法用它做秒级采样。</li>
-          <li><code>-L 0</code> 接管道时 stdout 是全缓冲，实测数秒延迟且进程被杀会丢数据；接到 pty 后变成行缓冲。</li>
-          <li>输出是<strong>进程自启动以来的累计字节</strong>，速率靠两次采样差分，基准保留 30 秒。</li>
-        </ul>
-        <p>这些都是在真机上量出来的结论，不是猜的。同样的结论也决定了退出时为什么要先 <code>SIGTERM</code> 再补一刀
-           <code>SIGKILL</code>：nettop 在 pty 下会忽略 TERM，而 <code>kill(2)</code> 照样返回 0。</p>
+      <p class="eyebrow">界面</p>
+      <h2>每个页签都值得看一眼。</h2>
+      <div class="shots">
+
+        <div class="shot-pair">
+          <figure class="shot">
+            <img src="panel-cpu.png" alt="NetScope 清理释放页：CPU 与内存指标卡，程序按 CPU 排序">
+            <figcaption>清理释放 · 按 CPU：双指标卡并排，程序列表按占用排序，悬停行尾可一键关闭</figcaption>
+          </figure>
+          <figure class="shot">
+            <img src="panel-memory.png" alt="NetScope 清理释放页：按内存排序">
+            <figcaption>清理释放 · 按内存：切一档排序，谁在吃内存一目了然</figcaption>
+          </figure>
+        </div>
+
+        <div class="shot-pair">
+          <figure class="shot">
+            <img src="panel-light.png" alt="NetScope 浅色主题">
+            <figcaption>浅色主题：面板可「跟随系统」，也可在设置里固定浅色或深色</figcaption>
+          </figure>
+          <figure class="shot">
+            <img src="panel-dark.png" alt="NetScope 深色主题">
+            <figcaption>深色主题：两套主题都按对比度校准，菜单栏徽标跟随系统菜单栏深浅</figcaption>
+          </figure>
+        </div>
+
+        <figure class="shot wide">
+          <img src="panel-settings.png" alt="NetScope 设置页">
+          <figcaption>设置：外观主题、刷新间隔、显示条数、列表口径、告警阈值、开机启动</figcaption>
+        </figure>
+
       </div>
     </div>
   </section>
 
-  <section id="install" class="section muted">
+  <!-- ============ 工程细节 ============ -->
+  <section class="section muted">
     <div class="wrap">
-      <h2>安装</h2>
+      <p class="eyebrow">怎么做的</p>
+      <h2>不糊弄的三个细节。</h2>
+      <div class="craft-grid">
+
+        <article class="craft">
+          <span class="c-num">01</span>
+          <h3>数据从哪来</h3>
+          <p>不引依赖，把系统自带的 <code>nettop</code> 接到伪终端上实时读：</p>
+          <pre><code>nettop -P -x -L 0 -s 1 -J bytes_in,bytes_out -t external</code></pre>
+          <ul>
+            <li><code>-L N</code> 的采样窗口固定 30 秒，与 N 无关——没法秒级，所以接 pty 自己读；</li>
+            <li>pty 让全缓冲变行缓冲，进程退出先 <code>SIGTERM</code> 再补 <code>SIGKILL</code>（实测 nettop 在 pty 下忽略 TERM）；</li>
+            <li>输出是进程自启动以来的累计字节，速率靠两次采样差分。</li>
+          </ul>
+        </article>
+
+        <article class="craft">
+          <span class="c-num">02</span>
+          <h3>告警怎么不吵人</h3>
+          <ul>
+            <li>连续 3 次采样都超阈值才发通知——下载开始那一秒的峰值不会打扰你；</li>
+            <li>同应用 10 分钟冷却，不连环轰炸；</li>
+            <li>掉到阈值以下立即清零，下次从头计。</li>
+          </ul>
+        </article>
+
+        <article class="craft">
+          <span class="c-num">03</span>
+          <h3>凭什么敢说轻</h3>
+          <ul>
+            <li>主进程 CPU 0.06%、内存 32 MB（10 秒均值实测）；</li>
+            <li>两个 nettop 子进程各 0.1%、6 MB；</li>
+            <li>可执行文件 1 MB，装进菜单栏就安静待着。</li>
+          </ul>
+        </article>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 安装 ============ -->
+  <section id="install" class="section">
+    <div class="wrap">
+      <p class="eyebrow">安装</p>
+      <h2>两条路，都一步到。</h2>
       <div class="install-grid">
         <div class="install-col">
-          <h3>下载</h3>
+          <h3>下载 DMG</h3>
           <ol>
-            <li>从 <a href="https://github.com/zdx8/NetScope-macOS/releases/latest/download/NetScope-macOS-arm64.dmg">这里</a> 下载 <code>NetScope-macOS-arm64.dmg</code>（永久链接，始终指向最新版）</li>
-            <li>打开后把 NetScope 拖进「应用程序」</li>
+            <li>从 <a href="https://github.com/zdx8/NetScope-macOS/releases/latest/download/NetScope-macOS-arm64.dmg">这里</a> 下载 <code>NetScope-macOS-arm64.dmg</code>（永久链接，始终最新版）</li>
+            <li>打开后把 NetScope 拖进「应用程序」，启动即可</li>
             <li>首次启动若被 Gatekeeper 拦下：右键 →「打开」，或执行下面的命令</li>
           </ol>
           <pre><code>xattr -dr com.apple.quarantine /Applications/NetScope.app</code></pre>
-          <p class="note">出于安全考虑，包是临时签名（<code>codesign --sign -</code>）。自己用没问题；要分发给别人请自行签名与公证。</p>
+          <p class="note">包为临时签名（<code>codesign --sign -</code>），自用没问题；分发给别人请自行签名与公证。Release 附 <code>.sha256</code> 校验文件。</p>
         </div>
 
         <div class="install-col">
           <h3>从源码构建</h3>
           <ol>
-            <li>需要 Xcode 命令行工具（Swift 6.x）</li>
+            <li>需要 Xcode 命令行工具（Swift 6.x），无需其他依赖</li>
             <li>克隆后一条命令打包并启动</li>
           </ol>
           <pre><code>git clone https://github.com/zdx8/NetScope-macOS.git
 cd NetScope-macOS
 bash Scripts/build_app.sh</code></pre>
-          <p class="note">首次构建约 24 秒，增量 6–7 秒。产物在 <code>dist/NetScope.app</code>。</p>
+          <p class="note">首次构建约 24 秒，增量 6–7 秒。产物在 <code>dist/NetScope.app</code>；另附 214 项自检与受控负载校准脚本。</p>
         </div>
       </div>
     </div>
   </section>
 
-  <section class="section">
+  <!-- ============ 已知限制 ============ -->
+  <section class="section muted">
     <div class="wrap">
-      <h2>已知限制</h2>
+      <p class="eyebrow">已知限制</p>
+      <h2>先说清楚，再用得放心。</h2>
       <ul class="limits">
         <li><strong>只统计 TCP / UDP socket。</strong>ICMP、部分 RAW socket 不计入，与「活动监视器」的数字不完全一致。</li>
         <li><strong>loopback 被排除。</strong><code>127.0.0.1</code> 上的通信不显示。</li>
-        <li><strong>走 TUN 型 VPN 时，各应用之和会大于总量。</strong>VPN 客户端显示的是物理链路上的加密字节，与隧道内应用的明文互为副本 —— 总量本身准确，但不能把各行相加。</li>
+        <li><strong>走 TUN 型 VPN 时，各应用之和会大于总量。</strong>VPN 客户端显示的是物理链路上的加密字节，与隧道内应用的明文互为副本——总量本身准确，但不能把各行相加。</li>
         <li><strong>只跑 IPv6 的隧道识别不到。</strong>判据是 <code>utun*</code> 上有 IPv4 地址（macOS 会给每个 utun 都发 <code>fe80::</code>，用 IPv4 才能干净区分）。</li>
         <li><strong>面板打开时菜单栏状态项会有系统高亮底。</strong>这是 NSPopover 锚定绘制的高亮层，按钮状态管不了。</li>
-        <li><strong>CPU 温度与风扇转速显示不了。</strong>读 AppleSMC 需要特权助手，实测无特权时所有键都返回「不可读」；面板不放拿不到的数值，该格用于磁盘占用与网络状态。</li>
+        <li><strong>CPU 温度与风扇转速显示不了。</strong>读 AppleSMC 需要特权助手，实测无特权时所有键都返回「不可读」——面板不放拿不到的数值，顶部留给磁盘占用与本机速率。</li>
       </ul>
     </div>
   </section>
@@ -220,15 +322,79 @@ bash Scripts/build_app.sh</code></pre>
   <div class="wrap footer-inner">
     <div>
       <p class="fname">NetScope <span class="tag">v1.3.1</span></p>
-      <p class="fmeta">SwiftUI · AppKit · SQLite · 零第三方依赖</p>
+      <p class="fmeta">SwiftUI · AppKit · SQLite · 零第三方依赖 · MIT 许可证</p>
     </div>
     <div class="flinks">
       <a href="https://github.com/zdx8/NetScope-macOS">源码</a>
+      <a href="https://github.com/zdx8/NetScope-macOS/blob/main/LICENSE">MIT</a>
       <a href="https://github.com/zdx8/NetScope-macOS/blob/main/HANDOVER.md">交接文档</a>
       <a href="https://github.com/zdx8/NetScope-macOS/releases/latest">下载</a>
     </div>
   </div>
 </footer>
+
+<script>
+// 四档查看器：与 App 内的芯片切换同构。无依赖，纯静态。
+(function () {
+  var TIERS = {
+    live: {
+      img: "panel-dark.png",
+      alt: "NetScope 实时档：60 秒速率曲线，应用列表按当前速率排序",
+      window: "60 秒",
+      avg: "每秒刷新",
+      keep: "内存环形缓冲，不落盘",
+      caption: "实时：每秒刷新的当前速率曲线，60 秒滑动窗口；应用列表按此刻速率排序，谁在跑流量一眼可见。"
+    },
+    day: {
+      img: "panel-day-dark.png",
+      alt: "NetScope 日视图：过去 24 小时，5 分钟平均速率与当日累计排行",
+      window: "过去 24 小时",
+      avg: "5 分钟平均",
+      keep: "26 小时",
+      caption: "日：按 5 分钟平均绘出的 24 小时节奏；列表切到当日累计排行——今天谁吃得多，直接见分晓。"
+    },
+    week: {
+      img: "panel-week-dark.png",
+      alt: "NetScope 周视图：过去 7 天，30 分钟平均速率",
+      window: "过去 7 天",
+      avg: "30 分钟平均",
+      keep: "8.5 天",
+      caption: "周：30 分钟平均抹平毛刺，工作日与周末的节奏一目了然；列表是该时段累计排行。"
+    },
+    month: {
+      img: "panel-month-dark.png",
+      alt: "NetScope 月视图：过去 30 天，2 小时平均速率与长期排行",
+      window: "过去 30 天",
+      avg: "2 小时平均",
+      keep: "31.5 天",
+      caption: "月：2 小时平均看长期趋势，长期吃流量的应用直接排名；数据沉淀越久，这张图越有看头。"
+    }
+  };
+
+  var img = document.getElementById("tier-img");
+  var caption = document.getElementById("tier-caption");
+  var mWindow = document.getElementById("meta-window");
+  var mAvg = document.getElementById("meta-avg");
+  var mKeep = document.getElementById("meta-keep");
+  var buttons = document.querySelectorAll(".seg button");
+
+  buttons.forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      var tier = TIERS[btn.dataset.tier];
+      if (!tier) return;
+      buttons.forEach(function (b) {
+        b.setAttribute("aria-pressed", b === btn ? "true" : "false");
+      });
+      img.src = tier.img;
+      img.alt = tier.alt;
+      caption.textContent = tier.caption;
+      mWindow.textContent = tier.window;
+      mAvg.textContent = tier.avg;
+      mKeep.textContent = tier.keep;
+    });
+  });
+})();
+</script>
 
 </body>
 </html>
