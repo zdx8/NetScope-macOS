@@ -1,9 +1,6 @@
 import SwiftUI
 
-/// Astryx 的尺度令牌。数值全部来自 astryx 源码，别按感觉改：
-/// - 间距是 4pt 阶梯（`--spacing-N` = N × 0.25rem，root 16px）；
-/// - 圆角 `inner 6 / element 10 / container 12`（neutral 主题覆盖后的值）；
-/// - 字号 `base 14 / sm 12 / xs 10 / lg 17`，标题 semibold。
+/// NetScope 尺度与基础组件令牌。
 enum Ax {
     static let s1: CGFloat = 4
     static let s2: CGFloat = 8
@@ -12,38 +9,28 @@ enum Ax {
     static let s5: CGFloat = 20
     static let s6: CGFloat = 24
 
-    /// 圆角（`--radius-inner` / `--radius-element` / `--radius-container`）
     static let radiusInner: CGFloat = 6
-    static let radiusElement: CGFloat = 10
+    static let radiusElement: CGFloat = 9
     static let radiusContainer: CGFloat = 12
 
-    /// 三个面板统一尺寸：固定高度是需求的一部分（切换面板时窗口不应跳动），
-    /// 列表在内部滚动，而不是把窗口撑高。
+    /// 固定弹窗尺寸：切换视图时窗口不跳动
     static let panelWidth: CGFloat = 360
     static let panelHeight: CGFloat = 560
 
-    /// 表格行高：14pt 正文 + 上下 10pt，接近 Astryx 的 list item 密度
     static let rowHeight: CGFloat = 34
     static let headerHeight: CGFloat = 46
     static let footerHeight: CGFloat = 42
 }
 
 enum AxFont {
-    /// display / heading-1（29pt，semibold）
     static let display = Font.system(size: 28, weight: .semibold)
-    /// heading-3（17pt）
     static let title = Font.system(size: 17, weight: .semibold)
-    /// heading-5（12pt semibold），区块标题
     static let section = Font.system(size: 12, weight: .semibold)
-    /// body（14pt）
     static let body = Font.system(size: 13.5)
-    /// label（14pt medium）
     static let label = Font.system(size: 13, weight: .medium)
-    /// supporting（12pt）
     static let supporting = Font.system(size: 12)
-    /// caption（10pt）
     static let caption = Font.system(size: 10)
-    /// 数值：等宽数字，避免每秒刷新时左右跳动
+
     static func number(_ size: CGFloat, weight: Font.Weight = .semibold) -> Font {
         .system(size: size, weight: weight).monospacedDigit()
     }
@@ -51,7 +38,7 @@ enum AxFont {
 
 // MARK: - 容器
 
-/// Astryx Card：12pt 圆角、1px `--color-border`、`--shadow-low` 级别的投影。
+/// 标准卡片容器：12pt 圆角 + 1px 精细描边 + 浅色轻阴影（深色纯黑底无投影）
 struct AxCard<Content: View>: View {
     var padding: CGFloat = Ax.s3
     var spacing: CGFloat = Ax.s2
@@ -75,8 +62,41 @@ struct AxCard<Content: View>: View {
     }
 }
 
-/// 1px 分隔线（`--color-border`）。用 Rectangle 而不是 Divider：
-/// Divider 的实际厚度随分辨率变化，与 Astryx 的 1px 描边对不上。
+/// 统一列表卡片容器：提供可选内嵌表头 + 内部滚动列表区域
+struct PanelListCard<Header: View, Content: View>: View {
+    @ViewBuilder var header: Header
+    @ViewBuilder var content: Content
+
+    var body: some View {
+        VStack(spacing: 0) {
+            header
+                .padding(.horizontal, Ax.s3)
+                .padding(.vertical, 6)
+                .background(Theme.surfaceMuted.opacity(0.45))
+
+            AxDivider()
+
+            ScrollView(.vertical) {
+                LazyVStack(spacing: 0) {
+                    content
+                }
+            }
+            .scrollIndicators(.automatic)
+        }
+        .clipShape(RoundedRectangle(cornerRadius: Ax.radiusContainer, style: .continuous))
+        .background(
+            RoundedRectangle(cornerRadius: Ax.radiusContainer, style: .continuous)
+                .fill(Theme.surface)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: Ax.radiusContainer, style: .continuous)
+                .strokeBorder(Theme.border, lineWidth: 1)
+        )
+        .shadow(color: Theme.cardShadow, radius: 4, x: 0, y: 2)
+    }
+}
+
+/// 1px 分隔线
 struct AxDivider: View {
     var inset: CGFloat = 0
 
@@ -88,7 +108,7 @@ struct AxDivider: View {
     }
 }
 
-/// 区块标题：12pt semibold + 可选右侧说明（10pt 三级文字）。
+/// 区块标题：12pt semibold + 可选右侧说明
 struct AxSectionTitle: View {
     let title: String
     var trailing: String?
@@ -109,7 +129,7 @@ struct AxSectionTitle: View {
     }
 }
 
-/// 胶囊标签（`radius-full`），用于状态与口径说明。
+/// 胶囊标签，用于状态点或标记说明
 struct AxChip: View {
     let text: String
     var tint: Color = Theme.textSecondary
@@ -124,12 +144,47 @@ struct AxChip: View {
             .padding(.vertical, 2.5)
             .background(
                 Capsule(style: .continuous)
-                    .fill(filled ? Theme.accent : tint.opacity(0.12))
+                    .fill(filled ? Theme.accent : tint.opacity(0.14))
             )
     }
 }
 
-/// 3pt 占比条（Astryx progress 的紧凑形态）。
+/// 顶部状态胶囊（带圆点或图标）
+struct AxStatusBadge: View {
+    let text: String
+    let tint: Color
+    var symbol: String? = nil
+
+    var body: some View {
+        HStack(spacing: 4) {
+            if let symbol {
+                Image(systemName: symbol)
+                    .font(.system(size: 8.5, weight: .semibold))
+                    .foregroundStyle(tint)
+            } else {
+                Circle()
+                    .fill(tint)
+                    .frame(width: 5.5, height: 5.5)
+            }
+            Text(text)
+                .font(.system(size: 10, weight: .medium))
+                .foregroundStyle(Theme.textSecondary)
+                .lineLimit(1)
+        }
+        .padding(.horizontal, 7)
+        .padding(.vertical, 3.5)
+        .background(
+            Capsule(style: .continuous)
+                .fill(Theme.surfaceMuted)
+        )
+        .overlay(
+            Capsule(style: .continuous)
+                .strokeBorder(Theme.border, lineWidth: 1)
+        )
+    }
+}
+
+/// 占比条
 struct AxMeter: View {
     let fraction: Double
     var color: Color
@@ -151,7 +206,7 @@ struct AxMeter: View {
 
 // MARK: - 按钮
 
-/// 次级按钮：透明底、悬停叠 4%/6% 黑/白，对应 Astryx 的 ghost button。
+/// 次级按钮：透明底、悬停叠加
 struct AxGhostButtonStyle: ButtonStyle {
     var tint: Color = Theme.textSecondary
     var compact: Bool = false
@@ -170,8 +225,8 @@ struct AxGhostButtonStyle: ButtonStyle {
             configuration.label
                 .font(AxFont.supporting)
                 .foregroundStyle(tint)
-                .padding(.horizontal, compact ? 6 : 9)
-                .padding(.vertical, compact ? 4 : 6)
+                .padding(.horizontal, compact ? 7 : 9)
+                .padding(.vertical, compact ? 5 : 6)
                 .background(
                     RoundedRectangle(cornerRadius: Ax.radiusElement, style: .continuous)
                         .fill(configuration.isPressed ? Theme.hover.opacity(1.6)
@@ -183,7 +238,7 @@ struct AxGhostButtonStyle: ButtonStyle {
     }
 }
 
-/// 主按钮：Astryx `--color-accent` 底 + `--color-on-accent` 字。
+/// 主按钮
 struct AxPrimaryButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
@@ -199,8 +254,7 @@ struct AxPrimaryButtonStyle: ButtonStyle {
     }
 }
 
-/// 行悬停高亮。列表行数量多，只给鼠标所在行铺一层 4% 的叠加，
-/// 不做缩放/位移——菜单栏弹窗里任何位移都会被看成抖动。
+/// 行悬停高亮
 struct AxHoverBackground: ViewModifier {
     @State private var hovering = false
 
@@ -211,8 +265,7 @@ struct AxHoverBackground: ViewModifier {
     }
 }
 
-/// 分段控件（Astryx SegmentedControl 的紧凑形态）：
-/// 凹槽用 `--color-background-muted`，选中的那一段浮起为 `--color-background-surface`。
+/// 分段控件（图标模式）
 struct AxSegmented<Value: Hashable>: View {
     struct Option: Identifiable {
         let value: Value
@@ -239,11 +292,11 @@ struct AxSegmented<Value: Hashable>: View {
                         .foregroundStyle(selected ? Theme.textPrimary : Theme.textSecondary)
                         .frame(width: segmentWidth, height: 20)
                         .background(
-                            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                .fill(selected ? Theme.surface : .clear)
+                            RoundedRectangle(cornerRadius: 7, style: .continuous)
+                                .fill(selected ? Theme.surfaceElevated : .clear)
                         )
                         .overlay(
-                            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                            RoundedRectangle(cornerRadius: 7, style: .continuous)
                                 .strokeBorder(selected ? Theme.border : .clear, lineWidth: 1)
                         )
                         .contentShape(Rectangle())

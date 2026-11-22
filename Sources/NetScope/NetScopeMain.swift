@@ -55,6 +55,12 @@ struct NetScopeMain {
         let siblings = NSRunningApplication.runningApplications(withBundleIdentifier: bundleID)
             .filter { $0.processIdentifier != myPID }
         if !siblings.isEmpty {
+            DistributedNotificationCenter.default().postNotificationName(
+                NSNotification.Name("com.zdx8.netscope.showPanel"),
+                object: nil,
+                userInfo: nil,
+                deliverImmediately: true
+            )
             siblings.first?.activate()
             exit(0)
         }
@@ -92,12 +98,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         // 调试入口：打印三项菜单栏徽标的实际屏幕坐标后退出。
         // 用来判断「建了三个却只看到两个」到底是代码没建，还是菜单栏没地方了。
+        // NETSCOPE_DUMP_LOOP=1 时改为每 2s 打一行、共 8 次——观察「被藏→切迷你→挤回」的时序。
         if CommandLine.arguments.contains("--dump-menu") {
             setvbuf(stdout, nil, _IONBF, 0)
+            let loop = ProcessInfo.processInfo.environment["NETSCOPE_DUMP_LOOP"] == "1"
             DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
                 controller.dumpMenuBarGeometry()
-                print("MENUBAR_DUMP_DONE")
-                exit(0)
+                if loop {
+                    for tick in 1...8 {
+                        DispatchQueue.main.asyncAfter(deadline: .now() + Double(tick) * 2) {
+                            controller.dumpMenuBarGeometry()
+                            if tick == 8 {
+                                print("MENUBAR_DUMP_DONE")
+                                exit(0)
+                            }
+                        }
+                    }
+                } else {
+                    print("MENUBAR_DUMP_DONE")
+                    exit(0)
+                }
             }
         }
 
@@ -181,10 +201,18 @@ enum HeadlessRunner {
 
         let engine = MonitorEngine(requestNotificationPermission: false)
         engine.start()
+        print("实际采样间隔: \(engine.effectiveInterval)s（settings.sampleInterval=\(Settings.shared.sampleInterval)）")
 
         let targetSamples = requestedInterval == nil ? 8 : 3
-        let sampleTimeout: TimeInterval = requestedInterval == nil ? 22 : 26
-        let reached = engine.waitForSamples(targetSamples, timeout: sampleTimeout)
+        // 超时必须按**实际生效的采样间隔**适配：无 --interval 时引擎用 settings 的间隔
+        // （用户可能设了 2–5s），固定 22s 会把 5s 间隔判成「采样不足」——批次节奏本身
+        // 完全正常（实测每批 = 间隔整）。target 也按间隔收：5s 间隔下等 8 批没意义。
+        let effectiveInterval = requestedInterval ?? Settings.shared.sampleInterval
+        let target = requestedInterval == nil
+            ? max(3, min(8, 18 / effectiveInterval))
+            : targetSamples
+        let sampleTimeout = Double(target * effectiveInterval) + 14
+        let reached = engine.waitForSamples(target, timeout: sampleTimeout)
         print("样本数      : \(engine.sampleCount)")
         print("进程数      : \(engine.processCount)")
         print("状态        : \(engine.status.label)")

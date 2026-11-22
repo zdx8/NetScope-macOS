@@ -15,8 +15,10 @@ import QuartzCore
 /// 命中靠图像内的像素区间，popover 锚点用该段的矩形，箭头正好指在被点的那段下面。
 @MainActor
 final class StatusItemController: NSObject {
-    private let item: NSStatusItem
+    private var item: NSStatusItem
     private var popover: NSPopover?
+    private var fallbackWindow: NSWindow?
+    private var fallbackResignObserver: Any?
     private var currentSlot: MenuBarSlot?
     private let router = PanelRouter()
     private var segments: [MenuBarBadge.Segment] = []
@@ -54,6 +56,8 @@ final class StatusItemController: NSObject {
         super.init()
         configureItem()
         installPressMonitor()
+        installReopenObserver()
+        installOcclusionWatcher()
         bindUpdates()
         engine.start()
     }
@@ -156,9 +160,93 @@ final class StatusItemController: NSObject {
             .sink { [weak self] theme in
                 Task { @MainActor in
                     self?.popover?.contentViewController?.view.appearance = theme.nsAppearance
+                    self?.fallbackWindow?.contentViewController?.view.appearance = theme.nsAppearance
                 }
             }
             .store(in: &cancellables)
+    }
+
+    private func installReopenObserver() {
+        DistributedNotificationCenter.default().addObserver(
+            forName: NSNotification.Name("com.zdx8.netscope.showPanel"),
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in
+                NSApp.activate(ignoringOtherApps: true)
+                self?.showPanel(.network)
+            }
+        }
+    }
+
+    private var isButtonVisibleInMenuBar: Bool {
+        guard let button = item.button,
+              let window = button.window,
+              window.occlusionState.contains(.visible),
+              let rect = badgeScreenRect() else {
+            return false
+        }
+        return rect.minY > 0
+    }
+
+    // MARK: - 菜单栏被挤的自救
+
+    /// 全尺寸徽标（约 130pt）被系统挤出可视区的自救状态。
+    /// 菜单栏右侧放不下时 macOS **静默**把项藏起来（1.1.5 教训：不报错、不提示，
+    /// item 仍在、窗口被移出可视区）——accessory 应用没有任何交互入口，用户无从挽回。
+    ///
+    /// 自救两级：先收窄成只画网络图标的迷你块（约 15pt）——实测系统**不会**因图像
+    /// 变窄而重新排布，位置分配卡死在创建时；所以收窄后仍被藏就销毁重建状态项
+    /// （removeStatusItem + 重新创建），新项按当前剩余空间重新参与排布。
+    /// 空间恢复 10s 后试回全尺寸；真正满栏时最多重建 2 次就停，不做无限挣扎。
+    private var compactBadge = false
+    private var compactSince: CFTimeInterval = 0
+    private var lastRebuildAt: CFTimeInterval = 0
+    private var rebuildAttempts = 0
+    private var occlusionWatcher: Timer?
+
+    private func installOcclusionWatcher() {
+        // 被藏/恢复没有系统回调（occlusionState 变化不通知），只能轮询
+        occlusionWatcher = Timer.scheduledTimer(withTimeInterval: 2, repeats: true) {
+            [weak self] _ in
+            MainActor.assumeIsolated {
+                self?.reviewBadgeWidth()
+            }
+        }
+    }
+
+    private func reviewBadgeWidth() {
+        guard let button = item.button, let window = button.window else { return }
+        let visible = window.occlusionState.contains(.visible)
+        let now = CACurrentMediaTime()
+
+        if compactBadge {
+            if visible {
+                // 迷你徽标至少驻留 10s 再试回全尺寸，避免宽↔窄每 2s 振荡
+                if now - compactSince > 10 {
+                    compactBadge = false
+                    rebuildAttempts = 0
+                    updateBadge()
+                }
+            } else if rebuildAttempts < 2, now - lastRebuildAt > 10 {
+                // 收窄还挤不回：销毁重建，逼系统按当前空间重新排布
+                rebuildAttempts += 1
+                lastRebuildAt = now
+                recreateStatusItem()
+            }
+        } else if !visible {
+            compactBadge = true
+            compactSince = now
+            updateBadge()
+        }
+    }
+
+    /// 销毁当前状态项并重新创建。徽标图像、点击命中、popover 锚点都动态取
+    /// `item.button`，无需重装监视器。
+    private func recreateStatusItem() {
+        NSStatusBar.system.removeStatusItem(item)
+        item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        configureItem()
     }
 
     // MARK: - 交互
@@ -391,6 +479,8 @@ final class StatusItemController: NSObject {
         if settings.menuBarShowsMemory { visible.insert(.memory) }
         if settings.menuBarShowsNetwork { visible.insert(.network) }
         if visible.isEmpty { visible.insert(.network) }
+        // 迷你徽标只保留网络段（点击整段命中，照样弹网络页）
+        if compactBadge { visible = [.network] }
 
         return MenuBarBadge.State(
             cpu: load.cpuReady ? load.cpuPercent : nil,
@@ -399,7 +489,8 @@ final class StatusItemController: NSObject {
             down: engine.totalDown,
             networkGlyph: settings.networkBarStyle == .sparkline ? .sparkline : .rate,
             sparkline: engine.history,
-            visible: visible
+            visible: visible,
+            compact: compactBadge
         )
     }
 
@@ -422,6 +513,8 @@ final class StatusItemController: NSObject {
     }
 
     private func tooltip() -> String {
+        // 迷你徽标没有数字可读，靠 tooltip 告诉用户为什么变了样、数字去哪了
+        let squeezed = compactBadge ? "菜单栏空间不足，已切换迷你徽标 · " : ""
         let prefix = engine.isPausedNow ? "已暂停 · " : ""
         let load = engine.systemLoad
         var parts: [String] = []
@@ -438,22 +531,91 @@ final class StatusItemController: NSObject {
         if isVisible(.network) {
             parts.append("上行 \(ByteFormat.rate(engine.totalUp))，下行 \(ByteFormat.rate(engine.totalDown))")
         }
-        return prefix + parts.joined(separator: " · ")
+        return squeezed + prefix + parts.joined(separator: " · ")
     }
 
     // MARK: - 调试入口
 
-    /// 供无界面自检 / 调试使用：直接打开指定段的面板。
-    func showPanel(_ slot: MenuBarSlot = .network) {
-        guard let button = item.button else { return }
-        let popover = panelPopover()
+    /// 供无界面自检 / 调试使用：直接打开指定段的面板；若菜单栏项被遮挡则自动启用浮动兜底窗口。
+    func showPanel(_ slot: MenuBarSlot = .network, autoCloseOnResign: Bool = true) {
         router.route(to: slot)
-        guard !popover.isShown else { return }
-        popover.show(relativeTo: anchorRect(for: slot, in: button),
-                     of: button,
-                     preferredEdge: .minY)
-        popover.contentViewController?.view.window?.makeKey()
+        settings.refreshLoginItemStatus()
+        if let granularity = router.trafficRange.granularity {
+            engine.refreshHistory(range: granularity)
+        }
+
+        if isButtonVisibleInMenuBar, let button = item.button {
+            let popover = panelPopover()
+            if !popover.isShown {
+                popover.show(relativeTo: anchorRect(for: slot, in: button),
+                             of: button,
+                             preferredEdge: .minY)
+            }
+            popover.contentViewController?.view.window?.makeKey()
+            currentSlot = slot
+            return
+        }
+
+        showFallbackWindow(autoCloseOnResign: autoCloseOnResign)
         currentSlot = slot
+    }
+
+    private func showFallbackWindow(autoCloseOnResign: Bool) {
+        let window: NSWindow
+        if let existing = fallbackWindow {
+            window = existing
+        } else {
+            let created = NSPanel(
+                contentRect: NSRect(x: 0, y: 0, width: Ax.panelWidth, height: Ax.panelHeight),
+                styleMask: [.borderless, .nonactivatingPanel],
+                backing: .buffered,
+                defer: false
+            )
+            created.isFloatingPanel = true
+            created.level = .statusBar
+            created.backgroundColor = .clear
+            created.isOpaque = false
+            created.hasShadow = true
+            created.acceptsMouseMovedEvents = true
+
+            let root = DashboardView(engine: engine, settings: settings, router: router)
+            let host = NSHostingController(rootView: root)
+            host.sizingOptions = []
+            host.view.wantsLayer = true
+            host.view.layer?.cornerRadius = Ax.radiusContainer
+            host.view.layer?.masksToBounds = true
+            host.view.appearance = settings.appearanceTheme.nsAppearance
+            created.contentViewController = host
+            fallbackWindow = created
+            window = created
+        }
+
+        if let observer = fallbackResignObserver {
+            NotificationCenter.default.removeObserver(observer)
+            fallbackResignObserver = nil
+        }
+        if autoCloseOnResign {
+            fallbackResignObserver = NotificationCenter.default.addObserver(
+                forName: NSWindow.didResignKeyNotification,
+                object: window,
+                queue: .main
+            ) { [weak self] _ in
+                Task { @MainActor in
+                    self?.fallbackWindow?.orderOut(nil)
+                }
+            }
+        }
+
+        if let screen = NSScreen.main?.visibleFrame {
+            let x = screen.maxX - Ax.panelWidth - 16
+            let y = screen.maxY - Ax.panelHeight - 12
+            window.setFrameOrigin(NSPoint(x: x, y: y))
+        } else {
+            window.center()
+        }
+
+        NSApp.activate(ignoringOtherApps: true)
+        window.makeKeyAndOrderFront(nil)
     }
 
     /// 截图专用：关掉 transient 自动收起（脚本启动时应用从未激活，
@@ -463,7 +625,7 @@ final class StatusItemController: NSObject {
         router.route(to: slot)
         popover.behavior = .applicationDefined
         NSApp.activate(ignoringOtherApps: true)
-        showPanel(slot)
+        showPanel(slot, autoCloseOnResign: false)
         setvbuf(stdout, nil, _IONBF, 0)
         if let button = item.button {
             let onScreen = button.window?.frame ?? .zero
@@ -471,13 +633,13 @@ final class StatusItemController: NSObject {
                   + "windowX=\(Int(onScreen.origin.x)) visible=\(!button.isHidden) "
                   + "segments=\(segments.count)")
         }
-        if let window = popover.contentViewController?.view.window {
+        if let window = popover.contentViewController?.view.window ?? fallbackWindow {
             print("PANEL_WINDOW=\(window.windowNumber)")
         }
     }
 
     /// 面板是否可见，供外部脚本核对。
-    var isPanelVisible: Bool { popover?.isShown ?? false }
+    var isPanelVisible: Bool { (popover?.isShown ?? false) || (fallbackWindow?.isVisible ?? false) }
 
     /// 打印徽标与各段的屏幕坐标。合并成一项后仍值得核对：
     /// 若整块被挤到刘海下面，`screenX` 会是负数或与刘海重叠。
@@ -486,11 +648,13 @@ final class StatusItemController: NSObject {
             print("menu: 无 button")
             return
         }
+        // 先做一次自救判定再打印：菜单栏挤满的机器上，dump 直接反映「被藏→切迷你」的结果
+        reviewBadgeWidth()
         let imageSize = button.image?.size ?? .zero
         let frame = button.window?.convertToScreen(button.convert(button.bounds, to: nil)) ?? .zero
         print("menu: image=\(Int(imageSize.width))x\(Int(imageSize.height)) "
               + "screenX=\(Int(frame.origin.x)) screenY=\(Int(frame.origin.y)) "
-              + "w=\(Int(frame.width)) h=\(Int(frame.height))")
+              + "w=\(Int(frame.width)) h=\(Int(frame.height)) compact=\(compactBadge)")
         // 菜单栏挤满时 macOS 不会报错：item 仍在、坐标照算，但窗口被移出可视区或隐藏。
         // 这三个值能区分「代码没画」和「系统没地方放」。
         print("menu: isVisible=\(item.isVisible) buttonHidden=\(button.isHidden) "

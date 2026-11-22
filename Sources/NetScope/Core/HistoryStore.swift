@@ -285,8 +285,10 @@ final class HistoryStore {
             let sql = """
             SELECT app_key, app_name, COALESCE(SUM(bytes_in),0), COALESCE(SUM(bytes_out),0)
             FROM traffic_samples WHERE granularity=? AND bucket>=?
-            GROUP BY app_key ORDER BY (bytes_in + bytes_out) DESC LIMIT ?;
+            GROUP BY app_key ORDER BY SUM(bytes_in) + SUM(bytes_out) DESC LIMIT ?;
             """
+            // ORDER BY 必须用 SUM(...) 聚合表达式：裸列名 bytes_in/bytes_out 在
+            // GROUP BY 查询里会解析成组内任意一行的原始值，排序结果是错的。
             var statement: OpaquePointer?
             guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK, let statement else { return }
             defer { sqlite3_finalize(statement) }

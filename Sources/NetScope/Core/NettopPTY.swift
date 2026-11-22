@@ -4,8 +4,12 @@ import Darwin
 /// nettop 的 `-t` 接口筛选范围。
 ///
 /// 这两个范围是本工具做 VPN 去重的基础：
-/// - `external` 是所有非 loopback 接口，包含 `utun*` 隧道。走 VPN 的应用，其明文流量
-///   出现在隧道上 —— 这是**应用归属**的真实来源。
+/// - `external` 是所有非 loopback 接口加上 loopback，包含 `utun*` 隧道。走 VPN 的应用，
+///   其明文流量出现在隧道上 —— 这是**应用归属**的真实来源。回环必须采：系统代理模式下
+///   应用流量走 `127.0.0.1 → 代理端口`，接口归属是 loopback——不采回环的话，这批流量
+///   只剩代理客户端在物理网卡上的转发总和，应用榜就全记到代理头上（1.3.x 反馈：流量
+///   都显示在 FlClash）。回环上的本机 IPC（XPC、本地服务等）会一并计入，量级远小于
+///   外网流量，视为应用流量口径的一部分。
 /// - `physical` 只有 `wifi` / `wired`（即 en*）。VPN 客户端把隧道内的明文再加密后
 ///   送到物理链路，所以只有它反映**网卡真实跑了多少字节**。
 ///
@@ -17,7 +21,8 @@ public enum InterfaceScope: String, Sendable {
     var nettopArguments: [String] {
         switch self {
         case .external:
-            return ["-t", "external"]
+            // nettop 的 -t 可叠加（手册：Multiple interface types, additive）
+            return ["-t", "external", "-t", "loopback"]
         case .physical:
             return ["-t", "wifi", "-t", "wired"]
         }

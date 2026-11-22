@@ -1,10 +1,6 @@
 import SwiftUI
 
-/// 菜单栏弹窗的根视图：顶部「清理释放 / 系统功能」两个选项栏，下面是内容与页脚。
-///
-/// 1.1.7 之前是三个独立面板（CPU / 内存 / 网络）。现在按需求合并为两页：
-/// - 清理释放 = CPU + 内存 + 程序列表（两种排序、悬停可关闭）；
-/// - 系统功能 = 磁盘占用（含可用空间）/ 本机速率，样式对齐 CPU/内存指标卡。
+/// 菜单栏弹窗的根视图：顶部胶囊分段导航 + 状态指示，或独立设置导航头，底部为上下文工具栏。
 struct DashboardView: View {
     @ObservedObject var engine: MonitorEngine
     @ObservedObject var settings: Settings
@@ -22,17 +18,17 @@ struct DashboardView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            tabBar
+            headerBar
             if showSettings {
-                settingsPanel
+                SettingsView(settings: settings)
             } else {
                 switch router.tab {
                 case .cleanup:
-                    CleanupTab(monitor: engine.systemLoad,
-                               sort: $router.sort,
-                               onClose: { row in engine.systemLoad.close(row) })
+                    ResourcesTab(monitor: engine.systemLoad,
+                                 sort: $router.sort,
+                                 onClose: { row in engine.systemLoad.close(row) })
                 case .system:
-                    SystemTab(engine: engine, settings: settings, router: router)
+                    NetworkTab(engine: engine, settings: settings, router: router)
                 }
             }
             footer
@@ -41,166 +37,136 @@ struct DashboardView: View {
         .background(Theme.background)
     }
 
-    // MARK: - 选项栏
+    // MARK: - 顶栏
 
-    private var tabBar: some View {
-        AxTabBar(options: [
-            .init(value: PanelRouter.Tab.cleanup, title: "清理释放"),
-            .init(value: PanelRouter.Tab.system, title: "系统功能")
-        ], selection: Binding(get: { router.tab },
-                          set: { newValue in
-                              router.tab = newValue
-                              if showSettings { showSettings = false }
-                          }))
+    private var headerBar: some View {
+        HStack(spacing: Ax.s2) {
+            if showSettings {
+                settingsHeader
+            } else {
+                monitorHeader
+            }
+        }
         .padding(.horizontal, Ax.s4)
-        .frame(height: Ax.headerHeight, alignment: .bottom)
+        .frame(height: Ax.headerHeight)
         .background(Theme.surface)
         .overlay(alignment: .bottom) { AxDivider() }
     }
 
-    // MARK: - 设置
+    private var monitorHeader: some View {
+        Group {
+            AxTabBar(options: [
+                .init(value: PanelRouter.Tab.system, title: "网络"),
+                .init(value: PanelRouter.Tab.cleanup, title: "系统")
+            ], selection: $router.tab)
 
-    private var settingsPanel: some View {
-        ScrollView(.vertical) {
-            VStack(spacing: 10) {
-                AxCard(padding: Ax.s3, spacing: Ax.s2) {
-                    AxSectionTitle(title: "菜单栏")
-                    HStack(spacing: Ax.s3) {
-                        Toggle("CPU", isOn: $settings.menuBarShowsCPU).toggleStyle(.checkbox)
-                        Toggle("内存", isOn: $settings.menuBarShowsMemory).toggleStyle(.checkbox)
-                        Toggle("网络", isOn: $settings.menuBarShowsNetwork).toggleStyle(.checkbox)
-                        Spacer(minLength: 0)
-                    }
-                    .font(AxFont.supporting)
-                    .help("三段共用菜单栏上的一项，关掉不关心的段即可缩短宽度")
+            Spacer(minLength: Ax.s2)
 
-                    settingRow("网络图标") {
-                        Picker("网络图标", selection: $settings.networkBarStyle) {
-                            ForEach(Settings.NetworkBarStyle.allCases) { style in
-                                Text(style.label).tag(style)
-                            }
-                        }
-                        .pickerStyle(.segmented)
-                        .labelsHidden()
-                        .frame(width: 116)
-                    }
+            HStack(spacing: 5) {
+                if engine.isTunnelActive {
+                    AxStatusBadge(text: "VPN",
+                                  tint: Theme.up,
+                                  symbol: "lock.shield.fill")
+                        .help(tunnelHelpText)
                 }
 
-                AxCard(padding: Ax.s3, spacing: Ax.s2) {
-                    AxSectionTitle(title: "外观")
-                    settingRow("主题") {
-                        Picker("主题", selection: $settings.appearanceTheme) {
-                            ForEach(Settings.AppearanceTheme.allCases) { theme in
-                                Text(theme.label).tag(theme)
-                            }
-                        }
-                        .pickerStyle(.segmented)
-                        .labelsHidden()
-                        .frame(width: 156)
-                        .help("只影响面板；菜单栏徽标跟随系统菜单栏的深浅")
-                    }
-                }
-
-                AxCard(padding: Ax.s3, spacing: Ax.s2) {
-                    AxSectionTitle(title: "采样")
-                    settingRow("刷新间隔") {
-                        Picker("刷新间隔", selection: $settings.sampleInterval) {
-                            ForEach([1, 2, 3, 5], id: \.self) { seconds in
-                                Text("\(seconds)s").tag(seconds)
-                            }
-                        }
-                        .pickerStyle(.segmented)
-                        .labelsHidden()
-                        .frame(width: 116)
-                    }
-                    settingRow("显示条数") {
-                        Picker("显示条数", selection: $settings.maxVisibleRows) {
-                            ForEach([5, 8, 12], id: \.self) { count in
-                                Text("\(count)").tag(count)
-                            }
-                        }
-                        .pickerStyle(.segmented)
-                        .labelsHidden()
-                        .frame(width: 116)
-                    }
-                    Toggle("列表只统计物理链路", isOn: $settings.physicalOnlyList)
-                        .toggleStyle(.checkbox)
-                        .font(AxFont.supporting)
-                        .help("开启后各应用之和与总量一致，但走 VPN 隧道内的应用将不再显示")
-                }
-
-                AxCard(padding: Ax.s3, spacing: Ax.s2) {
-                    AxSectionTitle(title: "提醒")
-                    Toggle("流量告警", isOn: $settings.alertsEnabled)
-                        .toggleStyle(.checkbox)
-                        .font(AxFont.supporting)
-                    if settings.alertsEnabled {
-                        settingRow("阈值 (MB/s)") {
-                            Picker("阈值", selection: $settings.alertThresholdMBps) {
-                                ForEach([1.0, 5.0, 10.0, 20.0], id: \.self) { mbps in
-                                    Text("\(Int(mbps))").tag(mbps)
-                                }
-                            }
-                            .pickerStyle(.segmented)
-                            .labelsHidden()
-                            .frame(width: 116)
-                        }
-                    }
-                    Toggle("开机自动启动", isOn: $settings.launchAtLogin)
-                        .toggleStyle(.checkbox)
-                        .font(AxFont.supporting)
-                }
+                AxStatusBadge(text: statusShortText,
+                              tint: Theme.accent(for: engine.status))
+                    .help(engine.status.label)
             }
-            .padding(.horizontal, Ax.s4)
-            .padding(.top, Ax.s3)
-            .padding(.bottom, Ax.s1)
         }
-        .scrollIndicators(.automatic)
-        .frame(maxHeight: .infinity)
     }
 
-    private func settingRow<Content: View>(_ title: String,
-                                           @ViewBuilder content: () -> Content) -> some View {
-        HStack(spacing: Ax.s2) {
-            Text(title)
-                .font(AxFont.supporting)
-                .foregroundStyle(Theme.textSecondary)
-            Spacer(minLength: Ax.s2)
-            content()
+    private var settingsHeader: some View {
+        Group {
+            Button {
+                withAnimation(.easeInOut(duration: 0.16)) {
+                    showSettings = false
+                }
+            } label: {
+                HStack(spacing: 4) {
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 11, weight: .semibold))
+                    Text("返回")
+                        .font(.system(size: 12.5, weight: .medium))
+                }
+            }
+            .buttonStyle(AxGhostButtonStyle(tint: Theme.textPrimary, compact: true))
+            .help("返回监控面板")
+
+            Rectangle()
+                .fill(Theme.border)
+                .frame(width: 1, height: 14)
+
+            Text("设置")
+                .font(.system(size: 13.5, weight: .semibold))
+                .foregroundStyle(Theme.textPrimary)
+
+            Spacer(minLength: 0)
+
+            AxChip(text: "v\(AppInfo.version)", tint: Theme.textSecondary)
         }
-        .frame(height: 22)
+    }
+
+    private var statusShortText: String {
+        switch engine.status {
+        case .running: return "监控中"
+        case .starting: return "启动中"
+        case .paused: return "已暂停"
+        case .failed: return "异常"
+        }
+    }
+
+    private var tunnelHelpText: String {
+        if engine.tunnelNames.isEmpty {
+            return "检测到活动 VPN 隧道：总量仅统计物理网卡"
+        }
+        return "活动隧道：\(engine.tunnelNames.joined(separator: ", "))（总量仅统计物理网卡）"
     }
 
     // MARK: - 底部
 
     private var footer: some View {
         HStack(spacing: Ax.s1) {
-            Button {
-                engine.togglePause()
-            } label: {
-                Label(engine.isPausedNow ? "继续" : "暂停",
-                      systemImage: engine.isPausedNow ? "play.fill" : "pause.fill")
-            }
-            .buttonStyle(AxGhostButtonStyle())
+            if showSettings {
+                Text("NetScope · 本地实时监控")
+                    .font(AxFont.caption)
+                    .foregroundStyle(Theme.textTertiary)
+                    .padding(.leading, Ax.s1)
 
-            Button {
-                engine.resetSession()
-            } label: {
-                Label("重置", systemImage: "arrow.counterclockwise")
-            }
-            .buttonStyle(AxGhostButtonStyle())
+                Spacer(minLength: 0)
 
-            Spacer(minLength: 0)
+                Button("完成") {
+                    withAnimation(.easeInOut(duration: 0.16)) { showSettings = false }
+                }
+                .buttonStyle(AxGhostButtonStyle(tint: Theme.textPrimary, compact: true))
+            } else {
+                Button {
+                    engine.togglePause()
+                } label: {
+                    Label(engine.isPausedNow ? "继续" : "暂停",
+                          systemImage: engine.isPausedNow ? "play.fill" : "pause.fill")
+                }
+                .buttonStyle(AxGhostButtonStyle(compact: true))
 
-            Button {
-                withAnimation(.easeInOut(duration: 0.16)) { showSettings.toggle() }
-            } label: {
-                Image(systemName: "slider.horizontal.3")
-                    .font(.system(size: 11))
+                Button {
+                    engine.resetSession()
+                } label: {
+                    Label("重置", systemImage: "arrow.counterclockwise")
+                }
+                .buttonStyle(AxGhostButtonStyle(compact: true))
+
+                Spacer(minLength: 0)
+
+                Button {
+                    withAnimation(.easeInOut(duration: 0.16)) { showSettings.toggle() }
+                } label: {
+                    Image(systemName: "slider.horizontal.3")
+                        .font(.system(size: 11))
+                }
+                .buttonStyle(AxGhostButtonStyle(compact: true))
+                .help("设置")
             }
-            .buttonStyle(AxGhostButtonStyle(tint: showSettings ? Theme.textPrimary : Theme.textSecondary,
-                                            compact: true))
-            .help("设置")
 
             Button {
                 NSApplication.shared.terminate(nil)

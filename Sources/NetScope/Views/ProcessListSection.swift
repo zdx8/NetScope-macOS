@@ -1,11 +1,6 @@
 import SwiftUI
 
-/// 「清理释放」页下半部分的程序列表。
-///
-/// 三个交互：
-/// 1. 两种排序（按 CPU / 按内存），选中项高亮——同一份数据，不重新采样；
-/// 2. 固定高度 + 内部滚动：面板尺寸不随进程数变化，末行也不会被裁；
-/// 3. 鼠标移到某行时，右侧出现「关闭」，直接对该应用聚合到的 pid 发 SIGTERM。
+/// 「系统」页下半部分的程序列表：统一 `PanelListCard` 卡内吸顶表头 + 悬停覆盖式二次确认关闭。
 struct ProcessListSection: View {
     let rows: [ProcessUsageRow]
     @Binding var sort: ProcessMetric
@@ -19,7 +14,6 @@ struct ProcessListSection: View {
         }
     }
 
-    /// 进度条的归一化基准：榜首那一条占满，其余按比例
     private var peak: Double {
         switch sort {
         case .cpu: return max(sorted.first?.cpu ?? 0, 0.1)
@@ -28,60 +22,52 @@ struct ProcessListSection: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
+        PanelListCard {
             header
-                .padding(.horizontal, 2)
-                .padding(.bottom, Ax.s2)
-
-            Group {
-                if sorted.isEmpty {
-                    VStack(spacing: Ax.s2) {
-                        Image(systemName: "list.bullet.rectangle")
-                            .font(.system(size: 16))
-                            .foregroundStyle(Theme.textTertiary)
-                        Text("正在采集进程数据…")
-                            .font(AxFont.supporting)
-                            .foregroundStyle(Theme.textSecondary)
+        } content: {
+            if sorted.isEmpty {
+                VStack(spacing: Ax.s2) {
+                    Image(systemName: "list.bullet.rectangle")
+                        .font(.system(size: 16))
+                        .foregroundStyle(Theme.textTertiary)
+                    Text("正在采集进程数据…")
+                        .font(AxFont.supporting)
+                        .foregroundStyle(Theme.textSecondary)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 64)
+            } else {
+                ForEach(sorted) { row in
+                    ProcessRowView(row: row,
+                                   metric: sort,
+                                   peak: peak,
+                                   accent: accent,
+                                   onClose: onClose)
+                    if row.id != sorted.last?.id {
+                        AxDivider(inset: Ax.s3 + 24)
                     }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else {
-                    ScrollView(.vertical) {
-                        LazyVStack(spacing: 0) {
-                            ForEach(sorted) { row in
-                                ProcessRowView(row: row, metric: sort, peak: peak,
-                                               accent: accent, onClose: onClose)
-                                // 最后一行不画分隔线：否则会贴着卡片下沿，看起来像被裁掉
-                                if row.id != sorted.last?.id {
-                                    AxDivider(inset: Ax.s3 + 24)
-                                }
-                            }
-                        }
-                    }
-                    .scrollIndicators(.automatic)
-                    .clipShape(RoundedRectangle(cornerRadius: Ax.radiusContainer, style: .continuous))
                 }
             }
-            .frame(height: 209)   // 6 行 × 34pt + 5 条分隔线：刚好整行，末行不会被裁
-                                  // （1.2.1 面板加高到 560 后从 5 行扩到 6 行）
-            .background(
-                RoundedRectangle(cornerRadius: Ax.radiusContainer, style: .continuous)
-                    .fill(Theme.surface)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: Ax.radiusContainer, style: .continuous)
-                    .strokeBorder(Theme.border, lineWidth: 1)
-            )
-            .shadow(color: Theme.cardShadow, radius: 4, x: 0, y: 2)
         }
-        .frame(maxHeight: .infinity, alignment: .top)
+        .frame(maxHeight: .infinity)
     }
 
-    /// 「程序 ［按 CPU｜按内存］ N 个」
+    /// 卡内吸顶表头：「程序（N）  [按 CPU | 按内存]」
     private var header: some View {
         HStack(spacing: Ax.s2) {
             Text("程序")
-                .font(AxFont.section)
-                .foregroundStyle(Theme.textSecondary)
+                .font(AxFont.caption)
+                .foregroundStyle(Theme.textTertiary)
+
+            Text("\(rows.count)")
+                .font(.system(size: 9.5, weight: .medium).monospacedDigit())
+                .foregroundStyle(Theme.textTertiary)
+                .padding(.horizontal, 5)
+                .padding(.vertical, 1)
+                .background(
+                    Capsule(style: .continuous)
+                        .fill(Theme.surface)
+                )
 
             Spacer(minLength: Ax.s2)
 
@@ -93,14 +79,12 @@ struct ProcessListSection: View {
             .padding(2)
             .background(
                 RoundedRectangle(cornerRadius: Ax.radiusInner, style: .continuous)
-                    .fill(Theme.surfaceMuted)
+                    .fill(Theme.surface)
             )
-
-            Text("\(rows.count) 个")
-                .font(AxFont.caption)
-                .foregroundStyle(Theme.textTertiary)
-                .monospacedDigit()
-                .frame(minWidth: 30, alignment: .trailing)
+            .overlay(
+                RoundedRectangle(cornerRadius: Ax.radiusInner, style: .continuous)
+                    .strokeBorder(Theme.border, lineWidth: 1)
+            )
         }
     }
 
@@ -111,17 +95,13 @@ struct ProcessListSection: View {
             sort = metric
         } label: {
             Text(metric.sortTitle)
-                .font(.system(size: 10.5, weight: selected ? .semibold : .regular))
+                .font(.system(size: 10, weight: selected ? .semibold : .regular))
                 .foregroundStyle(selected ? Theme.textPrimary : Theme.textSecondary)
                 .padding(.horizontal, 7)
-                .padding(.vertical, 2.5)
+                .padding(.vertical, 2)
                 .background(
                     RoundedRectangle(cornerRadius: 4, style: .continuous)
-                        .fill(selected ? Theme.surface : Color.clear)
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 4, style: .continuous)
-                        .strokeBorder(selected ? Theme.border : Color.clear, lineWidth: 1)
+                        .fill(selected ? Theme.surfaceMuted : Color.clear)
                 )
                 .contentShape(Rectangle())
         }
@@ -138,55 +118,90 @@ private struct ProcessRowView: View {
     var onClose: (ProcessUsageRow) -> Void
 
     @State private var hovering = false
+    @State private var confirmingClose = false
 
     var body: some View {
-        HStack(spacing: Ax.s2) {
-            icon
-                .frame(width: 16, height: 16)
+        ZStack(alignment: .trailing) {
+            HStack(spacing: Ax.s2) {
+                icon
+                    .frame(width: 16, height: 16)
 
-            VStack(alignment: .leading, spacing: 3) {
-                Text(row.name)
-                    .font(AxFont.label)
-                    .foregroundStyle(Theme.textPrimary)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
-                    .help(row.name)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(row.name)
+                        .font(AxFont.label)
+                        .foregroundStyle(Theme.textPrimary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                        .help(row.name)
 
-                AxMeter(fraction: fraction, color: accent, height: 2.5)
-                    .frame(maxWidth: 108)
+                    AxMeter(fraction: fraction, color: accent, height: 2.5)
+                        .frame(maxWidth: 108)
+                }
+
+                Spacer(minLength: Ax.s2)
+
+                // 数值列固定在右侧，悬停按钮覆盖在上方而不挤动布局
+                VStack(alignment: .trailing, spacing: 1) {
+                    Text(primary)
+                        .font(AxFont.number(12))
+                        .foregroundStyle(Theme.textPrimary)
+                    Text(secondary)
+                        .font(AxFont.caption)
+                        .foregroundStyle(Theme.textTertiary)
+                        .monospacedDigit()
+                }
+                .frame(width: 68, alignment: .trailing)
+                .opacity((hovering && row.canClose) ? 0.12 : 1)
             }
 
-            Spacer(minLength: Ax.s2)
-
-            VStack(alignment: .trailing, spacing: 1) {
-                Text(primary)
-                    .font(AxFont.number(12))
-                    .foregroundStyle(Theme.textPrimary)
-                Text(secondary)
-                    .font(AxFont.caption)
-                    .foregroundStyle(Theme.textTertiary)
-                    .monospacedDigit()
-            }
-            .frame(width: 62, alignment: .trailing)
-
-            // 悬停时才出现「关闭」：常态下这一列不存在，行内数字不会被永久挤窄
             if hovering, row.canClose {
-                Button("关闭") { onClose(row) }
-                    .buttonStyle(.plain)
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundStyle(Theme.fault)
-                    .help("向「\(row.name)」的 \(row.processCount) 个进程发送退出信号")
+                closeOverlayButton
+                    .transition(.opacity.combined(with: .scale(scale: 0.96, anchor: .trailing)))
             }
         }
         .padding(.horizontal, Ax.s3)
         .frame(height: Ax.rowHeight)
         .contentShape(Rectangle())
-        .modifier(AxHoverBackground())
+        .background(hovering ? Theme.hover : Color.clear)
         .onHover { inside in
-            withAnimation(.easeOut(duration: 0.12)) { hovering = inside }
+            withAnimation(.easeOut(duration: 0.12)) {
+                hovering = inside
+                if !inside { confirmingClose = false }
+            }
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(accessibilityText)
+    }
+
+    private var closeOverlayButton: some View {
+        Button {
+            if confirmingClose {
+                confirmingClose = false
+                onClose(row)
+            } else {
+                withAnimation(.easeOut(duration: 0.12)) {
+                    confirmingClose = true
+                }
+            }
+        } label: {
+            Text(confirmingClose ? "确认关闭？" : "关闭")
+                .font(.system(size: 10.5, weight: .semibold))
+                .foregroundStyle(confirmingClose ? Color.white : Theme.fault)
+                .padding(.horizontal, 9)
+                .padding(.vertical, 4)
+                .background(
+                    Capsule(style: .continuous)
+                        .fill(confirmingClose ? Theme.fault : Theme.fault.opacity(0.14))
+                )
+                .overlay(
+                    Capsule(style: .continuous)
+                        .strokeBorder(Theme.fault.opacity(confirmingClose ? 0 : 0.35), lineWidth: 1)
+                )
+        }
+        .buttonStyle(.plain)
+        .help(confirmingClose
+              ? "再次点击以结束「\(row.name)」的 \(row.processCount) 个进程"
+              : "向「\(row.name)」的 \(row.processCount) 个进程发送退出信号")
     }
 
     private var fraction: Double {

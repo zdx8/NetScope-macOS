@@ -51,6 +51,10 @@ enum MenuBarBadge {
         /// 趋势形态用的历史（只有 `.sparkline` 读它）
         var sparkline: RateHistory?
         var visible: Set<MenuBarSlot> = Set(MenuBarSlot.allCases)
+        /// 迷你徽标：菜单栏被其他状态项挤满、macOS 把 130pt 全徽标静默藏起时
+        /// （item 仍在、窗口被移出可视区，不报错），收窄成只画网络图标的一小块
+        /// 争取挤回可见区。命中时整段都是网络段，点击照样弹网络页。
+        var compact: Bool = false
     }
 
     // MARK: - 度量
@@ -78,6 +82,7 @@ enum MenuBarBadge {
         case .cpu, .memory:
             return percentWidth
         case .network:
+            if state.compact { return iconSize }
             let content: CGFloat
             switch state.networkGlyph {
             case .rate: content = rateWidth
@@ -168,6 +173,10 @@ enum MenuBarBadge {
                                               y: (rect.height - iconSize) / 2,
                                               width: iconSize, height: iconSize)
                         icon.draw(in: iconRect, from: .zero, operation: .sourceOver, fraction: 1)
+                    }
+                    if state.compact {
+                        // 迷你徽标：只有图标，没有速率数字
+                        continue
                     }
                     contentX += iconSize + iconGap
                     contentWidth -= iconSize + iconGap

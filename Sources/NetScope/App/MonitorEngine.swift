@@ -87,6 +87,8 @@ final class MonitorEngine: ObservableObject {
     private var watchdog: Timer?
     private var isPaused = false
     private var currentInterval = 1
+    /// 诊断用：headless 自检打印实际生效的采样间隔
+    var effectiveInterval: Int { currentInterval }
     private var batchesSincePrune = 0
 
     private var lastAppRestartAt = Date.distantPast
@@ -178,6 +180,7 @@ final class MonitorEngine: ObservableObject {
 
         // 列表口径可以切到"只统计物理链路"：此时各行之和不含 VPN 加密副本，
         // 但走隧道内的应用也会消失（它们的 socket 在 utun 上）。
+        // 默认 external 含 loopback（系统代理模式下应用流量的归属来源）+ 隧道客户端剔除。
         let listScope: InterfaceScope = settings.physicalOnlyList ? .physical : .external
 
         appChannel.onBatch = { [weak self] delta, processCount in
@@ -212,11 +215,21 @@ final class MonitorEngine: ObservableObject {
             identityByKey[identity.key] = identity
         }
 
-        // VPN 应用照常展示，不做剔除。
-        // 它在本通道里的流量是物理链路上的真实字节（客户端把明文加密后送上网卡），
-        // 所以删掉它反而会漏统计；"同一份数据被算两次"的问题由总量侧解决 ——
-        // 总量走 .physical 通道，只算网卡真正跑过的字节。
-        let candidates = delta.processes
+        // 转发型代理 / VPN 客户端从应用榜剔除（1.3.x 反馈：流量都记到 FlClash 名下）。
+        //
+        // 这类客户端在物理网卡（en*）上的行是**全体走代理应用的总和**——同一份字节
+        // 在归属上出现了两次：TUN 模式下应用流量在 utun 上已归应用本身；系统代理
+        // 模式下应用流量经 loopback 采集（见 InterfaceScope.external）也归了应用本身。
+        // 客户端行不再是任何应用的「独占流量」，保留它只会霸榜。
+        //
+        // 不加「隧道是否激活」的前置条件：FlClash 开着系统代理时 utun 可能没有 IPv4
+        // （TunnelDetector 判非活动），但它的 en* 行依旧是转发总和，同样要剔除。
+        // 代价是客户端自己的少量自用流量（更新检查、API 心跳）随之隐藏，量级极小。
+        let candidates = delta.processes.filter { row in
+            guard let key = keyByPID[row.pid],
+                  let identity = identityByKey[key] else { return true }
+            return !TunnelDetector.isTunnelClient(identity.displayName)
+        }
 
         let merged = AppAggregation.merge(candidates) { keyByPID[$0.pid] ?? $0.rawName }
         // 只保留本周期真有流量的条目。nettop 会把「持着 socket 但从没传过数据」的进程
@@ -283,7 +296,8 @@ final class MonitorEngine: ObservableObject {
             alertCenter.reset()
         }
 
-        // 物理通道不可用时，总量退化为全接口合计（此时无法区分 VPN 加密开销）
+        // 物理通道不可用时，总量退化为全接口合计（此时无法区分 VPN 加密开销；
+        // 应用通道含 loopback，退化总量会掺入少量本机 IPC 字节，边缘场景可接受）
         if !isUsingPhysicalTotal {
             updateTotals(down: delta.totalInPerSecond,
                          up: delta.totalOutPerSecond,
@@ -387,7 +401,15 @@ final class MonitorEngine: ObservableObject {
     /// 供无界面自检使用：等待若干个样本。
     func waitForSamples(_ target: Int, timeout: TimeInterval) -> Bool {
         let deadline = Date().addingTimeInterval(timeout)
+        let startedAt = Date()
+        var lastReported = -1
         while Date() < deadline {
+            // 诊断输出：批次到达时刻与双通道计数——「样本数不够」时先看这两条曲线
+            if sampleCount != lastReported {
+                let t = String(format: "%.1f", Date().timeIntervalSince(startedAt))
+                print("  [样本] t=\(t)s count=\(sampleCount) appChannel=\(appChannel.sampleCount) netChannel=\(netChannel.sampleCount)")
+                lastReported = sampleCount
+            }
             if sampleCount >= target { return true }
             RunLoop.main.run(until: Date().addingTimeInterval(0.05))
         }

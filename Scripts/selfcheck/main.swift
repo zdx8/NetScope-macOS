@@ -209,7 +209,10 @@ do {
 
 section("9. 接口范围参数")
 do {
-    expect(InterfaceScope.external.nettopArguments == ["-t", "external"], "external 传 -t external")
+    // 1.3.x 反馈「流量都记到 FlClash」后，external 补采 loopback：系统代理模式下
+    // 应用流量走 127.0.0.1→代理端口，接口归属是 loopback，不采就只剩代理的转发总和
+    expect(InterfaceScope.external.nettopArguments == ["-t", "external", "-t", "loopback"],
+           "external 传 -t external + loopback")
     expect(InterfaceScope.physical.nettopArguments == ["-t", "wifi", "-t", "wired"], "physical 只传 wifi + wired")
 }
 
@@ -287,6 +290,23 @@ do {
     let sinceNext = store.topApps(.fiveMinutes, since: next, now: Date(timeIntervalSince1970: next + 60))
     expect(sinceNext.count == 1 && sinceNext.first?.bytesIn == 9_000,
            "since 只统计起点之后的桶", detail: "\(sinceNext.count)")
+
+    // 排序必须按 SUM 聚合值：GROUP BY 下裸列名会解析成组内任意一行的原始值，
+    // 「跨桶累计大、单行小」的应用会被「单桶大值」的应用压到后面。
+    store.record([.init(key: "/Applications/SpreadApp.app", name: "累积王", bytesIn: 5_000, bytesOut: 0)],
+                 at: Date(timeIntervalSince1970: bucket1 + 180))
+    store.record([.init(key: "/Applications/SpreadApp.app", name: "累积王", bytesIn: 5_000, bytesOut: 0)],
+                 at: Date(timeIntervalSince1970: next + 120))
+    store.record([.init(key: "/Applications/OneshotApp.app", name: "单行王", bytesIn: 9_000, bytesOut: 0)],
+                 at: Date(timeIntervalSince1970: next + 180))
+    store.flush(force: true)
+    let ranked = store.topApps(.fiveMinutes, since: 0, now: Date(timeIntervalSince1970: next + 240))
+    let spreadIndex = ranked.firstIndex { $0.name == "累积王" }
+    let oneshotIndex = ranked.firstIndex { $0.name == "单行王" }
+    expect(spreadIndex != nil && oneshotIndex != nil && spreadIndex! < oneshotIndex!,
+           "topApps 排序按 SUM 聚合值（跨桶累计 10000 压过单桶 9000）",
+           detail: "累积王 total=\(ranked.first { $0.name == "累积王" }?.total ?? 0) "
+                 + "单行王 total=\(ranked.first { $0.name == "单行王" }?.total ?? 0)")
 
     // prune：超过保留期的桶删除，其余保留
     let ancient = Date(timeIntervalSince1970: bucket1 - 28 * 3_600)   // 28 小时前，超出 26h 保留期
