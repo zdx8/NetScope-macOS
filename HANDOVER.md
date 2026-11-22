@@ -14,6 +14,8 @@
 1.1.4 之后的版本**尚未发 Release、也未同步线上官网**（原因见第 6 节：临时签名 + 依赖 `nettop` 私有输出格式）；
 2026-11-19 已随 1.3.1 发布：`docs/` 截图与 `index.html` 文案均为 1.3.1，Release 附 `NetScope-macOS-arm64.dmg`（固定命名永久链接）。
 
+官网页面已按产品与 Astryx neutral 令牌重做，仍是静态 `docs/index.html` 与 `docs/style.css`（GitHub Pages 源不变）；`docs/` 里的产品截图文件未改。
+
 ## 2. 交付物与位置
 
 | 交付物 | 路径 | 版本 | 校验 |
